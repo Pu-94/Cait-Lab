@@ -1,21 +1,37 @@
-MIT License
+中文版本
+MIT 许可证（含补充条款）
 
-Copyright (c) 2025 Pu-94
+版权所有 (c) 2025 Cait-Lab
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+特此免费授予任何获得本软件及相关文档文件（以下简称“软件”）副本的人，不受限制地处理本软件的权限，包括但不限于使用、复制、修改、合并、发布、分发、再授权和/或销售本软件的副本，并允许接受本软件的人享有上述权利，但须遵守以下条件：
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+基本条件： 上述版权声明和本许可声明应包含在本软件的所有副本或主要部分中。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+补充条件 A：禁止竞争性使用
+本软件或其修改版本，不得直接用于与“Cait-Lab”网站（https://cait-lab.com）或其所有者提供的核心在线服务（包括但不限于其官方网站、API服务、SaaS平台等）构成实质性竞争的商业产品、服务或平台。例如，不得基于本软件源代码创建一个与原网站功能、目标用户及商业模式高度相似且形成直接竞争关系的替代性网站。
+
+补充条件 B：禁止不当推广与污名化
+禁止任何个人或实体使用本软件进行非法、欺诈、诽谤、骚扰，或任何可能损害“Cait-Lab”品牌、商标及其所有者声誉的活动。禁止在宣传或分发本软件及其衍生作品时，暗示与“Cait-Lab”或其所有者存在赞助、背书或隶属关系，除非获得其明确的书面授权。
+
+重要说明： 补充条件（第2、3条）仅限制对软件本身的使用方式，不限制学习、研究、私人使用或构建不构成直接竞争且不损害品牌声誉的非商业及商业项目。
+
+本软件“按原样”提供，不附带任何明示或暗示的担保，包括但不限于对适销性、特定用途适用性和非侵权性的担保。在任何情况下，作者或版权持有人均不对因本软件或使用本软件而产生的任何索赔、损害或其他责任承担责任，无论是在合同诉讼、侵权诉讼还是其他诉讼中。
+
+English Version
+MIT License (with Additional Terms)
+
+Copyright (c) 2025 Cait-Lab
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+Standard Condition: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+Additional Term A: Restriction on Competitive Use
+This Software, or derivative works based on it, shall not be used directly in a commercial product, service, or platform that competes materially with the core online services (including but not limited to its official website, API services, SaaS platform) provided by "Cait-Lab" (https://cait-lab.com) or its owners. For clarity, this prohibits creating a substantially similar alternative website, service, or platform that targets the same user base and business model, resulting in direct competition.
+
+Additional Term B: Prohibition on Improper Promotion & Defamation
+This Software shall not be used by any person or entity for any illegal, fraudulent, defamatory, harassing, or any activity that may harm the reputation, brand, or trademarks of "Cait-Lab" or its owners. It is prohibited to imply sponsorship, endorsement, or affiliation with "Cait-Lab" or its owners when promoting or distributing this Software or derivative works, without their explicit written permission.
+
+Important Note: The Additional Terms (Sections 2 & 3) restrict only the specific use cases of the Software. They do not prohibit learning, research, private use, or building non-commercial and commercial projects that do not constitute direct competition or harm to the brand's reputation.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
