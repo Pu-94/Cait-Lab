@@ -328,11 +328,10 @@
 
         <div class="categories">
             <button class="category-btn active" data-category="all">全部</button>
-            <button class="category-btn" data-category="data">数据分析</button>
-            <button class="category-btn" data-category="visualization">可视化</button>
-            <button class="category-btn" data-category="simulation">模拟仿真</button>
+            <button class="category-btn" data-category="data">数据</button>
+            <button class="category-btn" data-category="game">游戏</button>
             <button class="category-btn" data-category="tools">实用工具</button>
-            <button class="category-btn" data-category="resources">学习资源</button>
+            <button class="category-btn" data-category="study">学习资源</button>
         </div>
 
         <div class="nav-grid" id="navGrid">
@@ -635,8 +634,20 @@
                 });
                 console.log(`新页面已添加，ID: ${newPageId}`);
             }, 3000);
+            setTimeout(() => {
+                const newPageId = PageManager.addPage({
+                    title: "Cait-Tis",
+                    description: "这是一个蕴含Cait所有游戏的平台，里面含多种游戏。",
+                    category: "tools",
+                    icon: "fas fa-vial",
+                    url: "https://pu-94.github.io/Cait-Lab/Cait-Game",
+                    tags: ["游戏", "/", "/"]
+                });
+                console.log(`新页面已添加，ID: ${newPageId}`);
+            }, 3000);
 
         });
     </script>
 </body>
 </html>
+
