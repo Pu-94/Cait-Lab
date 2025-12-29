@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cait-Lab 导航中心</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --accent-color: #4cc9f0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --card-bg: #ffffff;
+            --body-bg: #f1f5f9;
+            --text-color: #333333;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        .dark-mode {
+            --primary-color: #5a7cff;
+            --secondary-color: #4d36d9;
+            --light-color: #1e293b;
+            --dark-color: #f1f5f9;
+            --card-bg: #334155;
+            --body-bg: #0f172a;
+            --text-color: #e2e8f0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: var(--transition);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            position: relative;
+        }
+
+        .logo {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-color);
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            background: var(--card-bg);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .search-box {
+            max-width: 500px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            padding-left: 50px;
+            border: none;
+            border-radius: 50px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.3);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        .categories {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .category-btn {
+            padding: 10px 20px;
+            background-color: var(--card-bg);
+            border: none;
+            border-radius: 30px;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            box-shadow: var(--shadow);
+        }
+
+        .category-btn:hover, .category-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .nav-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card-icon {
+            font-size: 1.8rem;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .card-description {
+            color: var(--text-color);
+            opacity: 0.9;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .card-footer {
+            padding: 0 20px 20px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 500;
+            transition: var(--transition);
+            text-align: center;
+            width: 100%;
+        }
+
+        .nav-link:hover {
+            background-color: var(--secondary-color);
+            transform: scale(1.05);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-color);
+            opacity: 0.7;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            grid-column: 1 / -1;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .nav-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .logo {
+                font-size: 2.2rem;
+            }
+            
+            .theme-toggle {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin: 0 auto 20px;
+            }
+            
+            header {
+                padding: 20px 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .categories {
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-flask"></i>
+            </div>
+            <h1>Cait-Lab 导航中心</h1>
+            <p class="subtitle">科学计算与数据分析平台 - 快速访问所有实验工具和资源</p>
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+        </header>
+
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索工具、实验或资源...">
+        </div>
+
+        <div class="categories">
+            <button class="category-btn active" data-category="all">全部</button>
+            <button class="category-btn" data-category="data">数据分析</button>
+            <button class="category-btn" data-category="visualization">可视化</button>
+            <button class="category-btn" data-category="simulation">模拟仿真</button>
+            <button class="category-btn" data-category="tools">实用工具</button>
+            <button class="category-btn" data-category="resources">学习资源</button>
+        </div>
+
+        <div class="nav-grid" id="navGrid">
+            <!-- 导航卡片将通过JavaScript动态生成 -->
+        </div>
+
+        <div class="footer">
+            <p>Cait-Lab © 2025 | 科学计算与数据分析平台 | 当前版本: 0.0.2</p>
+        </div>
+    </div>
+
+    <script>
+        // 页面数据 - 可扩展添加更多页面
+
+        const pageData = [
+            /*
+            {
+                id: 1,
+                title: "数据可视化实验室",
+                description: "使用多种图表类型进行数据探索和可视化分析，支持实时数据更新和交互式操作。",
+                category: "visualization",
+                icon: "fas fa-chart-line",
+                url: "https://cait-lab.com/visualization",
+                tags: ["图表", "数据分析", "交互式"]
+            },
+            {
+                id: 2,
+                title: "统计分析工具",
+                description: "执行描述性统计、假设检验、回归分析等多种统计方法，生成专业报告。",
+                category: "data",
+                icon: "fas fa-calculator",
+                url: "https://cait-lab.com/statistics",
+                tags: ["统计", "分析", "报告"]
+            },
+            {
+                id: 3,
+                title: "数值模拟平台",
+                description: "基于物理模型的数值模拟与仿真，支持参数调整和结果可视化。",
+                category: "simulation",
+                icon: "fas fa-atom",
+                url: "https://cait-lab.com/simulation",
+                tags: ["模拟", "仿真", "物理模型"]
+            },
+            {
+                id: 4,
+                title: "机器学习工作区",
+                description: "提供多种机器学习算法和模型训练环境，支持自定义数据集和模型导出。",
+                category: "data",
+                icon: "fas fa-robot",
+                url: "https://cait-lab.com/machine-learning",
+                tags: ["AI", "机器学习", "训练"]
+            },
+            {
+                id: 5,
+                title: "数据预处理工具",
+                description: "数据清洗、转换、归一化和特征工程工具，提高数据质量。",
+                category: "tools",
+                icon: "fas fa-filter",
+                url: "https://cait-lab.com/preprocessing",
+                tags: ["数据清洗", "特征工程", "预处理"]
+            },
+            {
+                id: 6,
+                title: "实验文档库",
+                description: "查看和下载实验文档、教程和案例分析，获取最新研究资料。",
+                category: "resources",
+                icon: "fas fa-book-open",
+                url: "https://cait-lab.com/docs",
+                tags: ["文档", "教程", "资源"]
+            },
+            {
+                id: 7,
+                title: "实时数据监控",
+                description: "实时数据流监控和预警系统，支持自定义监控指标和报警规则。",
+                category: "visualization",
+                icon: "fas fa-desktop",
+                url: "https://cait-lab.com/monitoring",
+                tags: ["实时", "监控", "预警"]
+            },
+            {
+                id: 8,
+                title: "代码编辑器",
+                description: "在线代码编辑和执行环境，支持多种编程语言和实时协作。",
+                category: "tools",
+                icon: "fas fa-code",
+                url: "https://cait-lab.com/editor",
+                tags: ["编程", "开发", "协作"]
+            }
+            */
+        ];
+
+        // 页面管理函数
+        const PageManager = {
+            // 初始化页面
+            init: function() {
+                this.renderPages(pageData);
+                this.setupEventListeners();
+                this.setupTheme();
+            },
+            
+            // 渲染页面卡片
+            renderPages: function(pages) {
+                const grid = document.getElementById('navGrid');
+                grid.innerHTML = '';
+                
+                if (pages.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <h3>未找到相关页面</h3>
+                            <p>尝试使用不同的关键词搜索，或浏览其他分类</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                pages.forEach(page => {
+                    const card = this.createCard(page);
+                    grid.appendChild(card);
+                });
+            },
+            
+            // 创建卡片元素
+            createCard: function(page) {
+                const card = document.createElement('div');
+                card.className = 'nav-card';
+                card.setAttribute('data-category', page.category);
+                card.setAttribute('data-id', page.id);
+                
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="${page.icon}"></i>
+                        </div>
+                        <div class="card-title">${page.title}</div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-description">${page.description}</p>
+                        <div class="tags">
+                            ${page.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="${page.url}" class="nav-link" target="_blank">进入页面</a>
+                    </div>
+                `;
+                
+                // 添加标签样式
+                const style = document.createElement('style');
+                style.textContent = `
+                    .tags {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 8px;
+                        margin-top: 15px;
+                    }
+                    .tag {
+                        padding: 4px 10px;
+                        background-color: var(--primary-color);
+                        opacity: 0.8;
+                        color: white;
+                        border-radius: 20px;
+                        font-size: 0.8rem;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                return card;
+            },
+            
+            // 设置事件监听器
+            setupEventListeners: function() {
+                // 搜索功能
+                document.getElementById('searchInput').addEventListener('input', (e) => {
+                    this.filterPages(e.target.value);
+                });
+                
+                // 分类过滤
+                document.querySelectorAll('.category-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // 更新活动按钮
+                        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        
+                        // 过滤页面
+                        const category = e.target.getAttribute('data-category');
+                        this.filterByCategory(category);
+                    });
+                });
+                
+                // 主题切换
+                document.getElementById('themeToggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+            },
+            
+            // 过滤页面函数
+            filterPages: function(searchTerm) {
+                const filteredPages = pageData.filter(page => {
+                    return page.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           page.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           page.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+                });
+                
+                this.renderPages(filteredPages);
+            },
+            
+            // 按分类过滤
+            filterByCategory: function(category) {
+                if (category === 'all') {
+                    this.renderPages(pageData);
+                    return;
+                }
+                
+                const filteredPages = pageData.filter(page => page.category === category);
+                this.renderPages(filteredPages);
+            },
+            
+            // 主题切换功能
+            setupTheme: function() {
+                const savedTheme = localStorage.getItem('caitlab-theme');
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
+                }
+            },
+            
+            toggleTheme: function() {
+                document.body.classList.toggle('dark-mode');
+                
+                const isDarkMode = document.body.classList.contains('dark-mode');
+                const icon = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+                document.getElementById('themeToggle').innerHTML = icon;
+                
+                localStorage.setItem('caitlab-theme', isDarkMode ? 'dark' : 'light');
+            },
+            
+            // 添加新页面的函数（便于扩展）
+            addPage: function(page) {
+                // 确保页面有所有必要属性
+                const newPage = {
+                    id: pageData.length + 1,
+                    title: page.title || "新页面",
+                    description: page.description || "页面描述",
+                    category: page.category || "tools",
+                    icon: page.icon || "fas fa-link",
+                    url: page.url || "#",
+                    tags: page.tags || ["新功能"]
+                };
+                
+                pageData.push(newPage);
+                this.renderPages(pageData);
+                
+                return newPage.id;
+            },
+            
+            // 获取所有页面
+            getAllPages: function() {
+                return [...pageData];
+            },
+            
+            // 根据ID获取页面
+            getPageById: function(id) {
+                return pageData.find(page => page.id === id);
+            },
+            
+            // 根据分类获取页面
+            getPagesByCategory: function(category) {
+                return pageData.filter(page => page.category === category);
+            }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            PageManager.init();
+            
+            // 示例：添加新页面（演示如何使用addPage函数）
+            // 在实际使用中，您可以从其他文件或用户输入调用此函数
+            /*
+            setTimeout(() => {
+                const newPageId = PageManager.addPage({
+                    title: "新实验平台",
+                    description: "这是一个新添加的实验平台，用于演示扩展功能。",
+                    category: "simulation",
+                    icon: "fas fa-vial",
+                    url: "https://cait-lab.com/new-experiment",
+                    tags: ["新功能", "实验", "演示"]
+                });
+                console.log(`新页面已添加，ID: ${newPageId}`);
+            }, 3000);
+            */
+            setTimeout(() => {
+                const newPageId = PageManager.addPage({
+                    title: "Cait-Tis",
+                    description: "这是一个测试网速平台，用于检测与服务器中的延迟、下载速度与上传速度。",
+                    category: "tools",
+                    icon: "fas fa-vial",
+                    url: "https://pu-94.github.io/Cait-Lab/Cait-Tis",
+                    tags: ["测网速", "实验", "测试"]
+                });
+                console.log(`新页面已添加，ID: ${newPageId}`);
+            }, 3000);
+
+        });
+    </script>
+</body>
+</html>
