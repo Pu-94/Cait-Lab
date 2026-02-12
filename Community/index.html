@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>社区聊天 - Cait-Lab</title>
     <style>
-        /* 样式部分保持不变，省略以节省篇幅 */
+        /* 样式部分保持不变 */
         * {
             margin: 0;
             padding: 0;
@@ -120,6 +120,17 @@
             display: inline-block;
             background: #dc3545;
             color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .muted-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
             padding: 1px 6px;
             border-radius: 10px;
             font-size: 10px;
@@ -268,15 +279,17 @@
         const BASE_URL = 'https://api.github.com';
         const CHAT_CONTENT_PATH = 'Community/Content.txt';
         const ADMIN_FILE_PATH = 'Community/Admin.txt';
+        const MUTED_USER_PATH = 'Community/Muted_user.txt'; // 新增：禁言用户文件路径
         const SUPER_ADMIN_USERNAME = 'Pu_cait';
         const DEBUG = true;
 
-        // ========== 全局缓存 ==========
+        // ========== 全局缓存（新增禁言用户列表） ==========
         const cache = {
             userInfo: {}, 
             adminList: [], 
             chatHistory: [], 
-            chatSha: '' 
+            chatSha: '',
+            mutedUsers: [] // 新增：禁言用户列表缓存
         };
 
         // ========== 元素获取不变 ==========
@@ -292,8 +305,9 @@
         let loginNickname = '';
         let loginLevel = '';
         let isAdmin = false;
+        let isCurrentUserMuted = false; // 新增：标记当前登录用户是否被禁言
 
-        // ========== 工具函数（增加获取最新SHA的方法） ==========
+        // ========== 工具函数 ==========
         function logDebug(message, data = null) {
             if (DEBUG) console.log(`[DEBUG] ${message}`, data ? data : '');
         }
@@ -319,42 +333,42 @@
             try {
                 const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
                     headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
-            });
-            if (!response.ok) return response.status === 404 ? null : Promise.reject(new Error(`HTTP ${response.status}`));
-            const data = await response.json();
-            return {
-                content: decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))),
-                sha: data.sha
-            };
-          } catch (error) {
-              logDebug(`读取文件错误: ${error.message}`);
-              throw error;
-          }
+                });
+                if (!response.ok) return response.status === 404 ? null : Promise.reject(new Error(`HTTP ${response.status}`));
+                const data = await response.json();
+                return {
+                    content: decodeURIComponent(escape(atob(data.content.replace(/\n/g, '')))),
+                    sha: data.sha
+                };
+            } catch (error) {
+                logDebug(`读取文件错误: ${error.message}`);
+                throw error;
+            }
         }
 
         async function writeFile(path, content, commitMessage, sha = null) {
-          try {
-            const requestBody = {
-                message: commitMessage,
-                content: btoa(unescape(encodeURIComponent(content)))
-            };
-            if (sha) requestBody.sha = sha;
-            const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-            return data;
-          } catch (error) {
-              logDebug(`写入文件错误: ${error.message}`);
-              throw error;
-          }
+            try {
+                const requestBody = {
+                    message: commitMessage,
+                    content: btoa(unescape(encodeURIComponent(content)))
+                };
+                if (sha) requestBody.sha = sha;
+                const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+                return data;
+            } catch (error) {
+                logDebug(`写入文件错误: ${error.message}`);
+                throw error;
+            }
         }
 
         async function deleteFile(path, commitMessage, sha) {
@@ -373,7 +387,7 @@
             }
         }
 
-        // 新增：获取文件最新的SHA值（强制从远程获取）
+        // 新增：获取文件最新的SHA值
         async function getLatestFileSha(path) {
             try {
                 const fileExists = await checkFileExists(path);
@@ -426,7 +440,63 @@
             }
         }
 
-        // ========== 用户信息 ==========
+        // ========== 新增：禁言用户相关逻辑 ==========
+        // 获取禁言用户列表
+        async function getMutedUsers() {
+            if (cache.mutedUsers.length > 0) return cache.mutedUsers;
+            logDebug(`首次读取禁言用户列表`);
+            try {
+                const fileExists = await checkFileExists(MUTED_USER_PATH);
+                let mutedUsers = fileExists ? (await readFile(MUTED_USER_PATH)).content.split('\n').map(u => u.trim()).filter(u => u) : [];
+                cache.mutedUsers = mutedUsers;
+                return mutedUsers;
+            } catch (error) {
+                logDebug(`读取禁言用户列表失败: ${error.message}`);
+                cache.mutedUsers = [];
+                return cache.mutedUsers;
+            }
+        }
+
+        // 检查用户是否被禁言
+        async function checkIsMuted(username) {
+            const mutedUsers = await getMutedUsers();
+            return mutedUsers.includes(username);
+        }
+
+        // 添加禁言用户
+        async function addMutedUser(targetUsername) {
+            logDebug(`添加禁言用户: ${targetUsername}`);
+            try {
+                // 检查目标用户是否存在
+                if (!await checkFileExists(`users/${targetUsername}/Nickname.txt`)) {
+                    return { success: false, message: `❌ 用户不存在：${targetUsername}` };
+                }
+                // 检查是否已是管理员（管理员不能被禁言）
+                if (await checkIsAdmin(targetUsername)) {
+                    return { success: false, message: `❌ 不能禁言管理员：${targetUsername}` };
+                }
+                // 检查是否已被禁言
+                const mutedUsers = await getMutedUsers();
+                if (mutedUsers.includes(targetUsername)) {
+                    return { success: false, message: `❌ ${targetUsername} 已被禁言` };
+                }
+                // 添加到禁言列表
+                mutedUsers.push(targetUsername);
+                const uniqueMutedUsers = [...new Set(mutedUsers)];
+                // 写入禁言文件
+                const fileExists = await checkFileExists(MUTED_USER_PATH);
+                const fileSha = fileExists ? (await readFile(MUTED_USER_PATH)).sha : null;
+                await writeFile(MUTED_USER_PATH, uniqueMutedUsers.join('\n'), `Mute user: ${targetUsername} by ${loginUsername}`, fileSha);
+                // 更新缓存
+                cache.mutedUsers = uniqueMutedUsers;
+                return { success: true, message: `✅ 已禁言 ${targetUsername}` };
+            } catch (error) {
+                logDebug(`添加禁言用户失败: ${error.message}`);
+                return { success: false, message: `❌ 禁言失败：${error.message}` };
+            }
+        }
+
+        // ========== 用户信息（新增禁言状态） ==========
         async function getUserNicknameAndLevel(username) {
             if (cache.userInfo[username]) return cache.userInfo[username];
             logDebug(`首次获取用户信息: ${username}`);
@@ -436,23 +506,26 @@
                 const nickname = nicknameFile ? nicknameFile.content.trim() || username : username;
                 const level = levelFile ? levelFile.content.trim() || '1' : '1';
                 const isAdmin = await checkIsAdmin(username);
-                const userInfo = { nickname, level, isAdmin };
+                const isMuted = await checkIsMuted(username); // 新增：检查禁言状态
+                const userInfo = { nickname, level, isAdmin, isMuted };
                 cache.userInfo[username] = userInfo;
                 return userInfo;
             } catch (error) {
                 logDebug(`获取用户信息失败: ${error.message}`);
-                const userInfo = { nickname: username, level: '1', isAdmin: false };
+                const isMuted = await checkIsMuted(username); // 新增：检查禁言状态
+                const userInfo = { nickname: username, level: '1', isAdmin: false, isMuted };
                 cache.userInfo[username] = userInfo;
                 return userInfo;
             }
         }
 
-        // ========== 指令逻辑 ==========
+        // ========== 指令逻辑（新增禁言指令） ==========
         const commandList = [
             { full: '/Help', short: '/H', desc: '查看所有支持的指令' },
             { full: '/Refresh', short: '/Rfr', desc: '刷新聊天记录（所有人可用）' },
             { full: '/clean', short: '/cls', desc: '清空所有聊天记录（仅管理员可用）' },
-            { full: '/new_Administrator <用户名>', short: '/new_Admin <用户名>', desc: '设置管理员（仅Pu_cait可用）' }
+            { full: '/new_Administrator <用户名>', short: '/new_Admin <用户名>', desc: '设置管理员（仅Pu_cait可用）' },
+            { full: '/Muted_user <用户名>', short: '/M_usr <用户名>', desc: '禁言指定用户（仅管理员可用）' } // 新增：禁言指令
         ];
 
         async function parseCommand(commandStr) {
@@ -473,7 +546,6 @@
                     if (!cache.chatHistory.length) {
                         feedback = 'ℹ️ 聊天记录为空，无需清空';
                     } else {
-                        // 清空时先获取最新SHA
                         const latestSha = await getLatestFileSha(CHAT_CONTENT_PATH);
                         if (latestSha) {
                             await deleteFile(CHAT_CONTENT_PATH, `Clear chat by ${loginUsername}`, latestSha);
@@ -496,6 +568,25 @@
                         feedback = result.message;
                     }
                 }
+            } else if (cmd.startsWith('/muted_user') || cmd.startsWith('/m_usr')) { // 新增：禁言指令处理
+                // 检查权限（仅管理员可执行）
+                if (!isAdmin && loginUsername !== SUPER_ADMIN_USERNAME) {
+                    feedback = '❌ 权限不足：仅管理员可执行禁言操作';
+                } else {
+                    const parts = commandStr.trim().split(' ');
+                    if (parts.length < 2) {
+                        feedback = '❌ 指令格式错误：/M_usr <用户名>';
+                    } else {
+                        const targetUsername = parts[1].trim();
+                        // 不能禁言自己
+                        if (targetUsername === loginUsername) {
+                            feedback = '❌ 不能禁言自己';
+                        } else {
+                            const result = await addMutedUser(targetUsername);
+                            feedback = result.message;
+                        }
+                    }
+                }
             } else {
                 feedback = `❌ 未知指令：${commandStr}（输入/Help查看所有指令）`;
             }
@@ -510,7 +601,7 @@
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
-        // ========== 聊天核心逻辑（重点修复SHA管理） ==========
+        // ========== 聊天核心逻辑 ==========
         async function init() {
             try {
                 const userStr = localStorage.getItem('caitlab_currentUser');
@@ -520,11 +611,22 @@
                 loginNickname = currentUser.nickname || currentUser.username;
                 loginLevel = currentUser.level || '1';
                 isAdmin = await checkIsAdmin(loginUsername);
-                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
+                // 新增：检查当前用户是否被禁言
+                isCurrentUserMuted = await checkIsMuted(loginUsername);
+                
+                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin, isMuted: isCurrentUserMuted };
 
                 loginNicknameEl.textContent = loginNickname;
                 loginLevelEl.textContent = `Lv.${loginLevel}`;
                 if (isAdmin) loginAdminBadgeEl.style.display = 'inline-block';
+
+                // 新增：如果被禁言，禁用发送按钮并提示
+                if (isCurrentUserMuted) {
+                    sendMsgBtnEl.disabled = true;
+                    messageInputEl.placeholder = '你已被禁言，无法发送消息';
+                    messageInputEl.disabled = true;
+                    addSystemMessage(`⚠️ 你已被禁言，无法发送消息`);
+                }
 
                 await loadChatHistory();
                 bindEvent();
@@ -602,26 +704,29 @@
                 const messageItem = document.createElement('div');
                 messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
                 messageItem.id = `msg_${senderUsername}_${timestamp}`;
+                
+                // 先获取用户信息（包含禁言状态）
+                const userInfo = await getUserNicknameAndLevel(senderUsername);
+                const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
+                const mutedBadge = userInfo.isMuted ? '<span class="muted-badge">已禁言</span>' : ''; // 新增：禁言徽章
+                
                 messageItem.innerHTML = `
-                    <div class="sender">${senderUsername}<span class="level-badge">Lv.?</span></div>
+                    <div class="sender">${userInfo.nickname}<span class="level-badge">Lv.${userInfo.level}</span>${adminBadge}${mutedBadge}</div>
                     <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
                     <div class="time">${formatTime(timestamp)}</div>
                 `;
                 chatMessagesEl.appendChild(messageItem);
-
-                const userInfo = await getUserNicknameAndLevel(senderUsername);
-                const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
-                messageItem.innerHTML = `
-                    <div class="sender">${userInfo.nickname}<span class="level-badge">Lv.${userInfo.level}</span>${adminBadge}</div>
-                    <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
-                    <div class="time">${formatTime(timestamp)}</div>
-                `;
             });
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
-        // 重写发送消息逻辑：增加SHA容错和重试
         async function sendMessage() {
+            // 新增：如果被禁言，直接返回
+            if (isCurrentUserMuted) {
+                alert('你已被禁言，无法发送消息');
+                return;
+            }
+
             const inputContent = messageInputEl.value.trim();
             if (!inputContent) { alert('请输入聊天内容'); return; }
             sendMsgBtnEl.disabled = true;
@@ -637,40 +742,31 @@
                 const timestamp = Date.now().toString();
                 const newMsgLine = `${loginUsername}|${timestamp}:${inputContent}`;
                 
-                // 核心修复1：发送前先获取最新的文件内容和SHA（避免缓存失效）
                 let existingContent = '';
                 let fileSha = null;
                 
-                // 先检查文件是否存在
                 const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
                 if (fileExists) {
-                    // 强制从远程获取最新数据，而不是依赖缓存
                     const fileData = await readFile(CHAT_CONTENT_PATH);
                     existingContent = fileData.content || '';
                     fileSha = fileData.sha;
                 }
 
-                // 拼接新内容
                 const newContent = existingContent ? `${existingContent}\n${newMsgLine}` : newMsgLine;
                 
-                // 核心修复2：写入文件（使用最新的SHA）
                 const res = await writeFile(CHAT_CONTENT_PATH, newContent, `Chat message from ${loginUsername}`, fileSha);
 
-                // 更新缓存（确保缓存和远程一致）
                 cache.chatHistory = newContent.split('\n').filter(line => line.trim());
                 cache.chatSha = res.sha;
-                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
+                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin, isMuted: isCurrentUserMuted };
 
                 messageInputEl.value = '';
                 renderChatHistory(cache.chatHistory);
             } catch (error) {
                 logDebug(`发送消息错误: ${error.message}`);
-                // 核心修复3：处理SHA相关错误，自动重试一次
                 if (error.message.includes('sha') || error.message.includes('422')) {
                     addSystemMessage(`⚠️ 消息发送冲突，正在重试...`);
-                    // 重试逻辑：强制刷新后重新发送
                     await syncRemoteChatHistory();
-                    // 重新调用发送方法（清空输入框避免重复发送）
                     const tempContent = messageInputEl.value.trim();
                     messageInputEl.value = tempContent;
                     await sendMessage();
@@ -687,4 +783,3 @@
     </script>
 </body>
 </html>
-
