@@ -101,6 +101,30 @@
             gap: 20px;
         }
 
+        /* 社区按钮样式 */
+        .community-btn {
+            padding: 8px 20px;
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .community-btn:hover {
+            background: var(--gradient);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
         /* 主题切换按钮 */
         .theme-toggle {
             background: none;
@@ -423,6 +447,16 @@
             .nav-right {
                 gap: 10px;
             }
+            
+            /* 移动端调整社区按钮样式 */
+            .community-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            .community-btn span {
+                display: none;
+            }
         }
 
         @media (max-width: 480px) {
@@ -450,6 +484,12 @@
         </div>
         
         <div class="nav-right">
+            <!-- 社区跳转按钮 -->
+            <a href="Cait-Lab/Community" class="community-btn">
+                <i class="fas fa-users"></i>
+                <span>社区</span>
+            </a>
+            
             <!-- 主题切换按钮 -->
             <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
                 <i class="fas fa-moon"></i>
@@ -516,7 +556,7 @@
                     <li><a href="index.html">首页</a></li>
                     <li><a href="projects">项目</a></li>
                     <li><a href="research">研究</a></li>
-                    <li><a href="community">社区</a></li>
+                    <li><a href="Cait-Lab/Community">社区</a></li>
                 </ul>
             </div>
             <div class="footer-section">
@@ -757,5 +797,3 @@
     </script>
 </body>
 </html>
-
-
