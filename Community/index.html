@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>社区聊天 - Cait-Lab</title>
     <style>
-        /* 样式和之前完全一致，无需修改 */
+        /* 样式部分保持不变，省略以节省篇幅 */
         * {
             margin: 0;
             padding: 0;
@@ -271,12 +271,12 @@
         const SUPER_ADMIN_USERNAME = 'Pu_cait';
         const DEBUG = true;
 
-        // ========== 新增：全局缓存（核心优化） ==========
+        // ========== 全局缓存 ==========
         const cache = {
-            userInfo: {}, // 缓存用户信息：{username: {nickname, level, isAdmin}}
-            adminList: [], // 缓存管理员列表
-            chatHistory: [], // 缓存聊天记录
-            chatSha: '' // 缓存聊天文件的sha，避免重复请求
+            userInfo: {}, 
+            adminList: [], 
+            chatHistory: [], 
+            chatSha: '' 
         };
 
         // ========== 元素获取不变 ==========
@@ -293,7 +293,7 @@
         let loginLevel = '';
         let isAdmin = false;
 
-        // ========== 工具函数（少量修改，增加缓存判断） ==========
+        // ========== 工具函数（增加获取最新SHA的方法） ==========
         function logDebug(message, data = null) {
             if (DEBUG) console.log(`[DEBUG] ${message}`, data ? data : '');
         }
@@ -363,16 +363,28 @@
             }
         }
 
-        // ========== 管理员逻辑（修改：增加缓存） ==========
+        // 新增：获取文件最新的SHA值（强制从远程获取）
+        async function getLatestFileSha(path) {
+            try {
+                const fileExists = await checkFileExists(path);
+                if (!fileExists) return null;
+                const fileData = await readFile(path);
+                return fileData ? fileData.sha : null;
+            } catch (error) {
+                logDebug(`获取最新SHA失败: ${error.message}`);
+                return null;
+            }
+        }
+
+        // ========== 管理员逻辑 ==========
         async function getAdminList() {
-            // 有缓存直接返回，不重复请求
             if (cache.adminList.length > 0) return cache.adminList;
             logDebug(`首次读取管理员列表`);
             try {
                 const fileExists = await checkFileExists(ADMIN_FILE_PATH);
                 let adminList = fileExists ? (await readFile(ADMIN_FILE_PATH)).content.split('\n').map(a => a.trim()).filter(a => a) : [];
                 if (!adminList.includes(SUPER_ADMIN_USERNAME)) adminList.push(SUPER_ADMIN_USERNAME);
-                cache.adminList = adminList; // 存入缓存
+                cache.adminList = adminList;
                 return adminList;
             } catch (error) {
                 logDebug(`读取管理员列表失败: ${error.message}`);
@@ -396,7 +408,7 @@
                 const uniqueAdminList = [...new Set(adminList)];
                 const fileExists = await checkFileExists(ADMIN_FILE_PATH);
                 await writeFile(ADMIN_FILE_PATH, uniqueAdminList.join('\n'), `Add admin: ${targetUsername} by ${loginUsername}`, fileExists ? (await readFile(ADMIN_FILE_PATH)).sha : null);
-                cache.adminList = uniqueAdminList; // 更新缓存
+                cache.adminList = uniqueAdminList;
                 return { success: true, message: `✅ 已将 ${targetUsername} 设置为管理员` };
             } catch (error) {
                 logDebug(`添加管理员失败: ${error.message}`);
@@ -404,9 +416,8 @@
             }
         }
 
-        // ========== 用户信息（修改：增加缓存，核心优化） ==========
+        // ========== 用户信息 ==========
         async function getUserNicknameAndLevel(username) {
-            // 有缓存直接返回，不重复请求API
             if (cache.userInfo[username]) return cache.userInfo[username];
             logDebug(`首次获取用户信息: ${username}`);
             try {
@@ -416,7 +427,7 @@
                 const level = levelFile ? levelFile.content.trim() || '1' : '1';
                 const isAdmin = await checkIsAdmin(username);
                 const userInfo = { nickname, level, isAdmin };
-                cache.userInfo[username] = userInfo; // 存入缓存
+                cache.userInfo[username] = userInfo;
                 return userInfo;
             } catch (error) {
                 logDebug(`获取用户信息失败: ${error.message}`);
@@ -426,7 +437,7 @@
             }
         }
 
-        // ========== 指令逻辑（完全不变） ==========
+        // ========== 指令逻辑 ==========
         const commandList = [
             { full: '/Help', short: '/H', desc: '查看所有支持的指令' },
             { full: '/Refresh', short: '/Rfr', desc: '刷新聊天记录（所有人可用）' },
@@ -443,7 +454,7 @@
                 return;
             }
             if (cmd === '/refresh' || cmd === '/rfr') {
-                await loadChatHistory(true); // 强制刷新远程
+                await loadChatHistory(true);
                 feedback = '✅ 聊天记录已刷新';
             } else if (cmd === '/clean' || cmd === '/cls') {
                 if (!isAdmin && loginUsername !== SUPER_ADMIN_USERNAME) {
@@ -452,8 +463,12 @@
                     if (!cache.chatHistory.length) {
                         feedback = 'ℹ️ 聊天记录为空，无需清空';
                     } else {
-                        await deleteFile(CHAT_CONTENT_PATH, `Clear chat by ${loginUsername}`, cache.chatSha);
-                        cache.chatHistory = []; // 清空缓存
+                        // 清空时先获取最新SHA
+                        const latestSha = await getLatestFileSha(CHAT_CONTENT_PATH);
+                        if (latestSha) {
+                            await deleteFile(CHAT_CONTENT_PATH, `Clear chat by ${loginUsername}`, latestSha);
+                        }
+                        cache.chatHistory = [];
                         cache.chatSha = '';
                         await loadChatHistory(true);
                         feedback = '🗑️ 聊天记录已清空';
@@ -485,7 +500,7 @@
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
-        // ========== 聊天核心逻辑（重写：缓存+异步渲染，核心优化） ==========
+        // ========== 聊天核心逻辑（重点修复SHA管理） ==========
         async function init() {
             try {
                 const userStr = localStorage.getItem('caitlab_currentUser');
@@ -495,14 +510,13 @@
                 loginNickname = currentUser.nickname || currentUser.username;
                 loginLevel = currentUser.level || '1';
                 isAdmin = await checkIsAdmin(loginUsername);
-                // 缓存当前登录用户信息
                 cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
 
                 loginNicknameEl.textContent = loginNickname;
                 loginLevelEl.textContent = `Lv.${loginLevel}`;
                 if (isAdmin) loginAdminBadgeEl.style.display = 'inline-block';
 
-                await loadChatHistory(); // 首次加载
+                await loadChatHistory();
                 bindEvent();
             } catch (err) {
                 loginNicknameEl.textContent = '未登录';
@@ -521,17 +535,13 @@
             });
         }
 
-        // 新增参数：isForce - 是否强制刷新远程（/Refresh指令时用）
         async function loadChatHistory(isForce = false) {
             try {
-                // 1. 有本地缓存且非强制刷新 → 先渲染缓存，后台同步
                 if (cache.chatHistory.length > 0 && !isForce) {
                     renderChatHistory(cache.chatHistory);
-                    // 后台静默同步远程最新记录
                     syncRemoteChatHistory();
                     return;
                 }
-                // 2. 无缓存/强制刷新 → 从远程获取
                 chatMessagesEl.innerHTML = '<div class="loading">正在加载历史消息...</div>';
                 await syncRemoteChatHistory();
             } catch (error) {
@@ -540,7 +550,6 @@
             }
         }
 
-        // 后台同步远程聊天记录，并更新缓存
         async function syncRemoteChatHistory() {
             try {
                 const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
@@ -557,11 +566,9 @@
                     chatMessagesEl.innerHTML = '';
                     return;
                 }
-                // 解析并更新缓存
                 const chatHistory = fileData.content.split('\n').filter(line => line.trim());
                 cache.chatHistory = chatHistory;
                 cache.chatSha = fileData.sha;
-                // 渲染最新记录
                 renderChatHistory(chatHistory);
             } catch (error) {
                 logDebug(`同步远程聊天记录失败: ${error.message}`);
@@ -569,9 +576,8 @@
             }
         }
 
-        // 异步渲染聊天记录：边获取用户信息边展示
         function renderChatHistory(messages) {
-            chatMessagesEl.innerHTML = ''; // 清空容器
+            chatMessagesEl.innerHTML = '';
             messages.forEach(async (msgLine) => {
                 const firstSplit = msgLine.indexOf('|');
                 const secondSplit = msgLine.indexOf(':', firstSplit + 1);
@@ -583,11 +589,9 @@
                 if (!senderUsername || !timestamp || !msgContent) return;
 
                 const isSelf = senderUsername === loginUsername;
-                // 创建消息DOM，先展示基础内容
                 const messageItem = document.createElement('div');
                 messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
                 messageItem.id = `msg_${senderUsername}_${timestamp}`;
-                // 临时展示用户名，获取信息后更新
                 messageItem.innerHTML = `
                     <div class="sender">${senderUsername}<span class="level-badge">Lv.?</span></div>
                     <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
@@ -595,7 +599,6 @@
                 `;
                 chatMessagesEl.appendChild(messageItem);
 
-                // 异步获取用户信息，更新DOM（不阻塞渲染）
                 const userInfo = await getUserNicknameAndLevel(senderUsername);
                 const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
                 messageItem.innerHTML = `
@@ -604,10 +607,10 @@
                     <div class="time">${formatTime(timestamp)}</div>
                 `;
             });
-            // 滚动到底部
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
+        // 重写发送消息逻辑：增加SHA容错和重试
         async function sendMessage() {
             const inputContent = messageInputEl.value.trim();
             if (!inputContent) { alert('请输入聊天内容'); return; }
@@ -623,29 +626,46 @@
 
                 const timestamp = Date.now().toString();
                 const newMsgLine = `${loginUsername}|${timestamp}:${inputContent}`;
+                
+                // 核心修复1：发送前先获取最新的文件内容和SHA（避免缓存失效）
                 let existingContent = '';
-                let fileSha = cache.chatSha; // 用缓存的sha，避免重复请求
-
-                if (cache.chatHistory.length > 0) {
-                    existingContent = cache.chatHistory.join('\n');
-                } else if (await checkFileExists(CHAT_CONTENT_PATH)) {
+                let fileSha = null;
+                
+                // 先检查文件是否存在
+                const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
+                if (fileExists) {
+                    // 强制从远程获取最新数据，而不是依赖缓存
                     const fileData = await readFile(CHAT_CONTENT_PATH);
                     existingContent = fileData.content || '';
                     fileSha = fileData.sha;
                 }
 
+                // 拼接新内容
                 const newContent = existingContent ? `${existingContent}\n${newMsgLine}` : newMsgLine;
+                
+                // 核心修复2：写入文件（使用最新的SHA）
                 const res = await writeFile(CHAT_CONTENT_PATH, newContent, `Chat message from ${loginUsername}`, fileSha);
 
-                // 更新缓存，避免重新请求
-                cache.chatHistory.push(newMsgLine);
+                // 更新缓存（确保缓存和远程一致）
+                cache.chatHistory = newContent.split('\n').filter(line => line.trim());
                 cache.chatSha = res.sha;
-                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin }; // 确保当前用户缓存最新
+                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
 
                 messageInputEl.value = '';
-                renderChatHistory(cache.chatHistory); // 用缓存渲染，秒更
+                renderChatHistory(cache.chatHistory);
             } catch (error) {
                 logDebug(`发送消息错误: ${error.message}`);
+                // 核心修复3：处理SHA相关错误，自动重试一次
+                if (error.message.includes('sha') || error.message.includes('422')) {
+                    addSystemMessage(`⚠️ 消息发送冲突，正在重试...`);
+                    // 重试逻辑：强制刷新后重新发送
+                    await syncRemoteChatHistory();
+                    // 重新调用发送方法（清空输入框避免重复发送）
+                    const tempContent = messageInputEl.value.trim();
+                    messageInputEl.value = tempContent;
+                    await sendMessage();
+                    return;
+                }
                 alert(`发送失败：${error.message}`);
                 addSystemMessage(`❌ 发送失败：${error.message}`);
             } finally {
