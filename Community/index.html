@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>社区聊天 - Cait-Lab</title>
+    <title>Cait-Lab 社区聊天</title>
     <style>
-        /* 样式保持不变 */
         * {
             margin: 0;
             padding: 0;
@@ -259,7 +258,7 @@
     </div>
 
     <script>
-        // ========== 配置不变 ==========
+        // ========== 配置项 ==========
         const a_token = 'ghp_';
         const b_token = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7';
         const GITHUB_TOKEN = a_token + b_token;
@@ -270,16 +269,18 @@
         const ADMIN_FILE_PATH = 'Community/Admin.txt';
         const SUPER_ADMIN_USERNAME = 'Pu_cait';
         const DEBUG = true;
+        const SYNC_INTERVAL = 10000; // 自动同步间隔(ms)
 
-        // ========== 全局缓存（核心优化） ==========
+        // ========== 全局缓存 - 核心优化 ==========
         const cache = {
-            userInfo: {}, // 缓存用户信息：{username: {nickname, level, isAdmin}}
-            adminList: [], // 缓存管理员列表
-            chatHistory: [], // 缓存聊天记录
-            chatSha: '' // 缓存聊天文件的sha，避免重复请求
+            userInfo: {},        // {username: {nickname, level, isAdmin}}
+            adminList: [],       // 管理员用户名列表
+            chatHistory: [],     // 聊天记录数组
+            chatSha: null,       // 聊天文件sha值(null表示文件不存在)
+            chatFileExists: false// 聊天文件是否存在
         };
 
-        // ========== 元素获取不变 ==========
+        // ========== 页面元素 ==========
         const loginNicknameEl = document.getElementById('loginNickname');
         const loginLevelEl = document.getElementById('loginLevel');
         const loginAdminBadgeEl = document.getElementById('loginAdminBadge');
@@ -287,61 +288,82 @@
         const sendMsgBtnEl = document.getElementById('sendMsgBtn');
         const chatMessagesEl = document.getElementById('chatMessages');
 
+        // ========== 全局变量 ==========
         let currentUser = null;
         let loginUsername = '';
         let loginNickname = '';
         let loginLevel = '';
         let isAdmin = false;
-        let syncTimer = null; // 定时同步定时器
+        let syncTimer = null; // 自动同步定时器
 
         // ========== 工具函数 ==========
         function logDebug(message, data = null) {
-            if (DEBUG) console.log(`[DEBUG] ${message}`, data ? data : '');
+            if (DEBUG) console.log(`[DEBUG] ${message}`, data || '');
         }
 
+        // 时间格式化
         function formatTime(timestamp) {
             const date = new Date(Number(timestamp));
             return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,0)}-${date.getDate().toString().padStart(2,0)} ${date.getHours().toString().padStart(2,0)}:${date.getMinutes().toString().padStart(2,0)}:${date.getSeconds().toString().padStart(2,0)}`;
         }
 
-        async function checkFileExists(path) {
+        // 检查文件是否存在并获取最新sha
+        async function checkFileStatus(path) {
             try {
                 const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
                     headers: { 
                         'Authorization': `token ${GITHUB_TOKEN}`, 
                         'Accept': 'application/vnd.github.v3+json',
-                        'Cache-Control': 'max-age=30, s-maxage=30' // 增加缓存控制
+                        'Cache-Control': 'max-age=10, s-maxage=10'
                     }
                 });
-                return response.status === 200;
+                if (response.status === 200) {
+                    const data = await response.json();
+                    return { exists: true, sha: data.sha };
+                }
+                return { exists: false, sha: null };
             } catch (error) {
-                logDebug(`检查文件错误: ${error.message}`);
-                return false;
+                logDebug(`检查文件状态失败: ${error.message}`);
+                return { exists: false, sha: null };
             }
         }
 
+        // 读取文件内容
         async function readFile(path) {
             try {
                 const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
                     headers: { 
                         'Authorization': `token ${GITHUB_TOKEN}`, 
                         'Accept': 'application/vnd.github.v3+json',
-                        'Cache-Control': 'max-age=30, s-maxage=30' // 增加缓存控制
+                        'Cache-Control': 'max-age=10, s-maxage=10'
                     }
                 });
-                if (!response.ok) return response.status === 404 ? null : Promise.reject(new Error(`HTTP ${response.status}`));
+                if (response.status !== 200) return { content: '', sha: null };
                 const data = await response.json();
-                return { content: atob(data.content.replace(/\n/g, '')), sha: data.sha };
+                return { 
+                    content: atob(data.content.replace(/\n/g, '')), 
+                    sha: data.sha 
+                };
             } catch (error) {
-                logDebug(`读取文件错误: ${error.message}`);
-                throw error;
+                logDebug(`读取文件失败: ${error.message}`);
+                return { content: '', sha: null };
             }
         }
 
-        async function writeFile(path, content, commitMessage, sha = null) {
+        // 写入文件 - 自动处理创建/更新(自动判断是否传sha)
+        async function writeFile(path, content, commitMessage) {
             try {
-                const requestBody = { message: commitMessage, content: btoa(content) };
-                if (sha) requestBody.sha = sha;
+                // 先检查文件状态，确定是创建还是更新
+                const fileStatus = await checkFileStatus(path);
+                const requestBody = { 
+                    message: commitMessage, 
+                    content: btoa(content) 
+                };
+                // 只有文件存在时才传入sha
+                if (fileStatus.exists) {
+                    requestBody.sha = fileStatus.sha;
+                }
+
                 const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
                     method: 'PUT',
                     headers: { 
@@ -351,17 +373,27 @@
                     },
                     body: JSON.stringify(requestBody)
                 });
+
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-                return data;
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP错误: ${response.status}`);
+                }
+                // 返回新的sha和文件存在状态
+                return { success: true, sha: data.content.sha, exists: true };
             } catch (error) {
-                logDebug(`写入文件错误: ${error.message}`);
-                throw error;
+                logDebug(`写入文件失败: ${error.message}`);
+                return { success: false, message: error.message, sha: null, exists: false };
             }
         }
 
-        async function deleteFile(path, commitMessage, sha) {
+        // 删除文件 - 先检查文件状态确保sha有效
+        async function deleteFile(path, commitMessage) {
             try {
+                const fileStatus = await checkFileStatus(path);
+                if (!fileStatus.exists) {
+                    return { success: true, message: '文件不存在，无需删除' };
+                }
+
                 const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
                     method: 'DELETE',
                     headers: { 
@@ -369,129 +401,176 @@
                         'Accept': 'application/vnd.github.v3+json', 
                         'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify({ message: commitMessage, sha: sha })
+                    body: JSON.stringify({ 
+                        message: commitMessage, 
+                        sha: fileStatus.sha 
+                    })
                 });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-                return data;
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.message || `HTTP错误: ${response.status}`);
+                }
+                return { success: true, message: '删除成功' };
             } catch (error) {
-                logDebug(`删除文件错误: ${error.message}`);
-                throw error;
+                logDebug(`删除文件失败: ${error.message}`);
+                return { success: false, message: error.message };
             }
         }
 
-        // ========== 管理员逻辑 ==========
+        // ========== 管理员相关逻辑 ==========
         async function getAdminList() {
             if (cache.adminList.length > 0) return cache.adminList;
             logDebug(`首次读取管理员列表`);
             try {
-                const fileExists = await checkFileExists(ADMIN_FILE_PATH);
-                let adminList = fileExists ? (await readFile(ADMIN_FILE_PATH)).content.split('\n').map(a => a.trim()).filter(a => a) : [];
-                if (!adminList.includes(SUPER_ADMIN_USERNAME)) adminList.push(SUPER_ADMIN_USERNAME);
+                const fileData = await readFile(ADMIN_FILE_PATH);
+                let adminList = fileData.content.split('\n')
+                    .map(a => a.trim())
+                    .filter(a => a);
+                
+                // 确保超级管理员始终在列表中
+                if (!adminList.includes(SUPER_ADMIN_USERNAME)) {
+                    adminList.push(SUPER_ADMIN_USERNAME);
+                    // 同步写入文件
+                    await writeFile(ADMIN_FILE_PATH, adminList.join('\n'), '确保超级管理员权限');
+                }
                 cache.adminList = adminList;
                 return adminList;
             } catch (error) {
-                logDebug(`读取管理员列表失败: ${error.message}`);
+                logDebug(`读取管理员列表失败，使用默认值: ${error.message}`);
                 cache.adminList = [SUPER_ADMIN_USERNAME];
                 return cache.adminList;
             }
         }
 
+        // 检查是否为管理员
         async function checkIsAdmin(username) {
             const adminList = await getAdminList();
             return adminList.includes(username);
         }
 
+        // 添加管理员
         async function addAdmin(targetUsername) {
-            logDebug(`添加管理员: ${targetUsername}`);
-            try {
-                if (!await checkFileExists(`users/${targetUsername}/Nickname.txt`)) return { success: false, message: `用户不存在：${targetUsername}` };
-                if (await checkIsAdmin(targetUsername)) return { success: false, message: `${targetUsername} 已是管理员` };
-                const adminList = await getAdminList();
-                adminList.push(targetUsername);
-                const uniqueAdminList = [...new Set(adminList)];
-                const fileExists = await checkFileExists(ADMIN_FILE_PATH);
-                await writeFile(ADMIN_FILE_PATH, uniqueAdminList.join('\n'), `Add admin: ${targetUsername} by ${loginUsername}`, fileExists ? (await readFile(ADMIN_FILE_PATH)).sha : null);
+            logDebug(`尝试添加管理员: ${targetUsername}`);
+            // 检查目标用户是否存在
+            const userFileStatus = await checkFileStatus(`users/${targetUsername}/Nickname.txt`);
+            if (!userFileStatus.exists) {
+                return { success: false, message: `❌ 用户不存在：${targetUsername}` };
+            }
+            // 检查是否已是管理员
+            const isAlreadyAdmin = await checkIsAdmin(targetUsername);
+            if (isAlreadyAdmin) {
+                return { success: false, message: `❌ ${targetUsername} 已是管理员` };
+            }
+            // 获取并更新管理员列表
+            const adminList = await getAdminList();
+            adminList.push(targetUsername);
+            const uniqueAdminList = [...new Set(adminList)];
+            // 写入文件
+            const writeRes = await writeFile(
+                ADMIN_FILE_PATH, 
+                uniqueAdminList.join('\n'), 
+                `Add admin: ${targetUsername} by ${loginUsername}`
+            );
+            if (writeRes.success) {
                 cache.adminList = uniqueAdminList;
                 return { success: true, message: `✅ 已将 ${targetUsername} 设置为管理员` };
-            } catch (error) {
-                logDebug(`添加管理员失败: ${error.message}`);
-                return { success: false, message: `添加失败：${error.message}` };
+            } else {
+                return { success: false, message: `❌ 添加失败：${writeRes.message}` };
             }
         }
 
-        // ========== 用户信息 ==========
+        // ========== 用户信息获取 ==========
         async function getUserNicknameAndLevel(username) {
             if (cache.userInfo[username]) return cache.userInfo[username];
             logDebug(`首次获取用户信息: ${username}`);
             try {
-                const nicknameFile = await readFile(`users/${username}/Nickname.txt`);
-                const levelFile = await readFile(`users/${username}/Level.txt`);
-                const nickname = nicknameFile ? nicknameFile.content.trim() || username : username;
-                const level = levelFile ? levelFile.content.trim() || '1' : '1';
+                const nicknameData = await readFile(`users/${username}/Nickname.txt`);
+                const levelData = await readFile(`users/${username}/Level.txt`);
+                const nickname = nicknameData.content.trim() || username;
+                const level = levelData.content.trim() || '1';
                 const isAdmin = await checkIsAdmin(username);
                 const userInfo = { nickname, level, isAdmin };
                 cache.userInfo[username] = userInfo;
                 return userInfo;
             } catch (error) {
-                logDebug(`获取用户信息失败: ${error.message}`);
+                logDebug(`获取用户信息失败，使用默认值: ${error.message}`);
                 const userInfo = { nickname: username, level: '1', isAdmin: false };
                 cache.userInfo[username] = userInfo;
                 return userInfo;
             }
         }
 
-        // ========== 指令逻辑 ==========
+        // ========== 指令处理逻辑 ==========
         const commandList = [
             { full: '/Help', short: '/H', desc: '查看所有支持的指令' },
-            { full: '/Refresh', short: '/Rfr', desc: '刷新聊天记录（所有人可用）' },
+            { full: '/Refresh', short: '/Rfr', desc: '强制刷新聊天记录（所有人可用）' },
             { full: '/clean', short: '/cls', desc: '清空所有聊天记录（仅管理员可用）' },
             { full: '/new_Administrator <用户名>', short: '/new_Admin <用户名>', desc: '设置管理员（仅Pu_cait可用）' }
         ];
 
         async function parseCommand(commandStr) {
             const cmd = commandStr.trim().toLowerCase();
-            let feedback = '';
+            // 帮助指令
             if (cmd === '/help' || cmd === '/h') {
-                const commandHtml = commandList.map(item => `<div>• ${item.full} (${item.short})：${item.desc}</div>`).join('');
-                addSystemMessage(`<div>📋 支持的指令列表：</div><div class="command-list">${commandHtml}</div>`);
+                const commandHtml = commandList.map(item => 
+                    `<div>• ${item.full} (${item.short})：${item.desc}</div>`
+                ).join('');
+                addSystemMessage(`
+                    <div>📋 支持的指令列表：</div>
+                    <div class="command-list">${commandHtml}</div>
+                `);
                 return;
             }
+            // 刷新指令
             if (cmd === '/refresh' || cmd === '/rfr') {
                 await loadChatHistory(true);
-                feedback = '✅ 聊天记录已刷新';
-            } else if (cmd === '/clean' || cmd === '/cls') {
-                if (!isAdmin && loginUsername !== SUPER_ADMIN_USERNAME) {
-                    feedback = '❌ 权限不足：仅管理员可执行清空操作';
-                } else {
-                    if (!cache.chatHistory.length) {
-                        feedback = 'ℹ️ 聊天记录为空，无需清空';
-                    } else {
-                        await deleteFile(CHAT_CONTENT_PATH, `Clear chat by ${loginUsername}`, cache.chatSha);
-                        cache.chatHistory = [];
-                        cache.chatSha = '';
-                        await loadChatHistory(true);
-                        feedback = '🗑️ 聊天记录已清空';
-                    }
-                }
-            } else if (cmd.startsWith('/new_administrator') || cmd.startsWith('/new_admin')) {
-                if (loginUsername !== SUPER_ADMIN_USERNAME) {
-                    feedback = '❌ 权限不足：仅Pu_cait可设置管理员';
-                } else {
-                    const parts = commandStr.trim().split(' ');
-                    if (parts.length < 2) {
-                        feedback = '❌ 指令格式错误：/new_Admin <用户名>';
-                    } else {
-                        const result = await addAdmin(parts[1].trim());
-                        feedback = result.message;
-                    }
-                }
-            } else {
-                feedback = `❌ 未知指令：${commandStr}（输入/Help查看所有指令）`;
+                addSystemMessage('✅ 聊天记录已强制刷新');
+                return;
             }
-            addSystemMessage(feedback);
+            // 清空指令
+            if (cmd === '/clean' || cmd === '/cls') {
+                if (!isAdmin && loginUsername !== SUPER_ADMIN_USERNAME) {
+                    addSystemMessage('❌ 权限不足：仅管理员可执行清空操作');
+                    return;
+                }
+                if (!cache.chatFileExists) {
+                    addSystemMessage('ℹ️ 聊天记录为空，无需清空');
+                    return;
+                }
+                const delRes = await deleteFile(CHAT_CONTENT_PATH, `Clear chat by ${loginUsername}`);
+                if (delRes.success) {
+                    cache.chatHistory = [];
+                    cache.chatSha = null;
+                    cache.chatFileExists = false;
+                    renderChatHistory(cache.chatHistory);
+                    addSystemMessage('🗑️ 聊天记录已成功清空');
+                } else {
+                    addSystemMessage(`❌ 清空失败：${delRes.message}`);
+                }
+                return;
+            }
+            // 添加管理员指令
+            if (cmd.startsWith('/new_administrator') || cmd.startsWith('/new_admin')) {
+                if (loginUsername !== SUPER_ADMIN_USERNAME) {
+                    addSystemMessage('❌ 权限不足：仅Pu_cait可设置管理员');
+                    return;
+                }
+                const parts = commandStr.trim().split(' ');
+                if (parts.length < 2) {
+                    addSystemMessage('❌ 指令格式错误：/new_Admin <用户名>');
+                    return;
+                }
+                const targetUsername = parts[1].trim();
+                const res = await addAdmin(targetUsername);
+                addSystemMessage(res.message);
+                return;
+            }
+            // 未知指令
+            addSystemMessage(`❌ 未知指令：${commandStr}（输入/Help查看所有指令）`);
         }
 
+        // 添加系统提示消息
         function addSystemMessage(content) {
             const systemMsg = document.createElement('div');
             systemMsg.className = 'system-message';
@@ -500,101 +579,11 @@
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
-        // ========== 聊天核心逻辑 ==========
-        async function init() {
-            try {
-                const userStr = localStorage.getItem('caitlab_currentUser');
-                if (!userStr) throw new Error('未找到登录信息');
-                currentUser = JSON.parse(userStr);
-                loginUsername = currentUser.username;
-                loginNickname = currentUser.nickname || currentUser.username;
-                loginLevel = currentUser.level || '1';
-                isAdmin = await checkIsAdmin(loginUsername);
-                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
-
-                loginNicknameEl.textContent = loginNickname;
-                loginLevelEl.textContent = `Lv.${loginLevel}`;
-                if (isAdmin) loginAdminBadgeEl.style.display = 'inline-block';
-
-                await loadChatHistory();
-                bindEvent();
-
-                // ========== 新增：定时静默同步（10秒一次） ==========
-                syncTimer = setInterval(() => {
-                    // 输入框未聚焦且不在发送过程中时才同步
-                    if (document.activeElement !== messageInputEl && !sendMsgBtnEl.disabled) {
-                        syncRemoteChatHistory();
-                    }
-                }, 10000); // 10秒间隔，可调整为5000=5秒
-
-            } catch (err) {
-                loginNicknameEl.textContent = '未登录';
-                loginLevelEl.style.display = 'none';
-                sendMsgBtnEl.disabled = true;
-                chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">${err.message}，请重新登录！</div>`;
-                alert(`登录状态异常：${err.message}`);
-                setTimeout(() => window.location.href = '../auth/login/index.html', 1000);
-            }
-        }
-
-        // 页面卸载时清除定时器，避免内存泄漏
-        window.addEventListener('beforeunload', () => {
-            if (syncTimer) clearInterval(syncTimer);
-        });
-
-        function bindEvent() {
-            sendMsgBtnEl.addEventListener('click', sendMessage);
-            messageInputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-            });
-        }
-
-        async function loadChatHistory(isForce = false) {
-            try {
-                if (cache.chatHistory.length > 0 && !isForce) {
-                    renderChatHistory(cache.chatHistory);
-                    syncRemoteChatHistory();
-                    return;
-                }
-                chatMessagesEl.innerHTML = '<div class="loading">正在加载历史消息...</div>';
-                await syncRemoteChatHistory();
-            } catch (error) {
-                logDebug(`加载历史消息错误: ${error.message}`);
-                chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">加载失败：${error.message}</div>`;
-            }
-        }
-
-        async function syncRemoteChatHistory() {
-            try {
-                const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
-                if (!fileExists) {
-                    cache.chatHistory = [];
-                    cache.chatSha = '';
-                    chatMessagesEl.innerHTML = '';
-                    return;
-                }
-                const fileData = await readFile(CHAT_CONTENT_PATH);
-                if (!fileData || !fileData.content) {
-                    cache.chatHistory = [];
-                    cache.chatSha = '';
-                    chatMessagesEl.innerHTML = '';
-                    return;
-                }
-                const chatHistory = fileData.content.split('\n').filter(line => line.trim());
-                // 只有当远程记录和本地缓存不一致时才更新渲染
-                if (JSON.stringify(chatHistory) !== JSON.stringify(cache.chatHistory)) {
-                    cache.chatHistory = chatHistory;
-                    cache.chatSha = fileData.sha;
-                    renderChatHistory(chatHistory);
-                }
-            } catch (error) {
-                logDebug(`同步远程聊天记录失败: ${error.message}`);
-                // 静默失败，不提示用户
-            }
-        }
-
+        // ========== 聊天核心渲染与同步 ==========
+        // 渲染聊天记录
         function renderChatHistory(messages) {
             chatMessagesEl.innerHTML = '';
+            if (messages.length === 0) return;
             messages.forEach(async (msgLine) => {
                 const firstSplit = msgLine.indexOf('|');
                 const secondSplit = msgLine.indexOf(':', firstSplit + 1);
@@ -606,9 +595,10 @@
                 if (!senderUsername || !timestamp || !msgContent) return;
 
                 const isSelf = senderUsername === loginUsername;
+                // 创建消息DOM
                 const messageItem = document.createElement('div');
                 messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
-                messageItem.id = `msg_${senderUsername}_${timestamp}`;
+                // 临时占位内容
                 messageItem.innerHTML = `
                     <div class="sender">${senderUsername}<span class="level-badge">Lv.?</span></div>
                     <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
@@ -616,6 +606,7 @@
                 `;
                 chatMessagesEl.appendChild(messageItem);
 
+                // 异步获取用户信息并更新
                 const userInfo = await getUserNicknameAndLevel(senderUsername);
                 const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
                 messageItem.innerHTML = `
@@ -624,15 +615,71 @@
                     <div class="time">${formatTime(timestamp)}</div>
                 `;
             });
+            // 滚动到底部
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
+        // 同步远程聊天记录到本地缓存
+        async function syncRemoteChatHistory() {
+            try {
+                // 先更新文件状态
+                const chatFileStatus = await checkFileStatus(CHAT_CONTENT_PATH);
+                cache.chatFileExists = chatFileStatus.exists;
+                cache.chatSha = chatFileStatus.sha;
+
+                if (!cache.chatFileExists) {
+                    cache.chatHistory = [];
+                    renderChatHistory([]);
+                    return;
+                }
+
+                // 读取远程内容
+                const fileData = await readFile(CHAT_CONTENT_PATH);
+                const remoteChatHistory = fileData.content.split('\n').filter(line => line.trim());
+                // 只有内容不一致时才更新渲染
+                if (JSON.stringify(remoteChatHistory) !== JSON.stringify(cache.chatHistory)) {
+                    cache.chatHistory = remoteChatHistory;
+                    cache.chatSha = fileData.sha;
+                    renderChatHistory(cache.chatHistory);
+                }
+            } catch (error) {
+                logDebug(`同步远程聊天记录失败: ${error.message}`);
+                // 静默失败，不干扰用户
+            }
+        }
+
+        // 加载聊天记录
+        async function loadChatHistory(isForce = false) {
+            try {
+                // 非强制刷新且有缓存，直接渲染
+                if (cache.chatHistory.length > 0 && !isForce) {
+                    renderChatHistory(cache.chatHistory);
+                    // 后台静默同步最新状态
+                    syncRemoteChatHistory();
+                    return;
+                }
+                // 强制刷新或无缓存，显示加载并同步
+                chatMessagesEl.innerHTML = '<div class="loading">正在加载历史消息...</div>';
+                await syncRemoteChatHistory();
+            } catch (error) {
+                logDebug(`加载聊天记录失败: ${error.message}`);
+                chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">加载失败：${error.message}</div>`;
+            }
+        }
+
+        // 发送消息
         async function sendMessage() {
             const inputContent = messageInputEl.value.trim();
-            if (!inputContent) { alert('请输入聊天内容'); return; }
+            if (!inputContent) {
+                alert('请输入聊天内容');
+                return;
+            }
             sendMsgBtnEl.disabled = true;
+            const timestamp = Date.now().toString();
+            const newMsgLine = `${loginUsername}|${timestamp}:${inputContent}`;
 
             try {
+                // 指令处理
                 if (inputContent.startsWith('/')) {
                     await parseCommand(inputContent);
                     messageInputEl.value = '';
@@ -640,42 +687,110 @@
                     return;
                 }
 
-                const timestamp = Date.now().toString();
-                const newMsgLine = `${loginUsername}|${timestamp}:${inputContent}`;
-                let existingContent = '';
-                let fileSha = cache.chatSha;
-
-                if (cache.chatHistory.length > 0) {
-                    existingContent = cache.chatHistory.join('\n');
-                } else if (await checkFileExists(CHAT_CONTENT_PATH)) {
-                    const fileData = await readFile(CHAT_CONTENT_PATH);
-                    existingContent = fileData.content || '';
-                    fileSha = fileData.sha;
-                }
-
-                const newContent = existingContent ? `${existingContent}\n${newMsgLine}` : newMsgLine;
-
-                // ========== 新增：本地先渲染，秒发体验 ==========
-                cache.chatHistory.push(newMsgLine);
-                renderChatHistory(cache.chatHistory); // 立即渲染到页面
+                // 本地先渲染（秒发体验）
+                const newChatHistory = [...cache.chatHistory, newMsgLine];
+                cache.chatHistory = newChatHistory;
+                renderChatHistory(newChatHistory);
                 messageInputEl.value = ''; // 立即清空输入框
 
-                // 后台同步到GitHub（不阻塞UI）
-                const res = await writeFile(CHAT_CONTENT_PATH, newContent, `Chat message from ${loginUsername}`, fileSha);
-                cache.chatSha = res.sha;
+                // 拼接新内容
+                const newContent = newChatHistory.join('\n');
+                // 写入远程文件（自动处理sha）
+                const writeRes = await writeFile(
+                    CHAT_CONTENT_PATH,
+                    newContent,
+                    `Chat message from ${loginUsername} at ${formatTime(timestamp)}`
+                );
 
+                // 更新缓存状态
+                if (writeRes.success) {
+                    cache.chatSha = writeRes.sha;
+                    cache.chatFileExists = writeRes.exists;
+                } else {
+                    // 写入失败，回滚本地缓存
+                    cache.chatHistory = cache.chatHistory.slice(0, -1);
+                    renderChatHistory(cache.chatHistory);
+                    addSystemMessage(`❌ 消息发送失败：${writeRes.message}`);
+                }
             } catch (error) {
-                logDebug(`发送消息错误: ${error.message}`);
-                alert(`发送失败：${error.message}`);
-                addSystemMessage(`❌ 发送失败：${error.message}`);
-                // 同步失败时回滚本地缓存
-                cache.chatHistory.pop();
+                logDebug(`发送消息异常: ${error.message}`);
+                // 异常回滚
+                cache.chatHistory = cache.chatHistory.slice(0, -1);
                 renderChatHistory(cache.chatHistory);
+                addSystemMessage(`❌ 消息发送异常：${error.message}`);
             } finally {
                 sendMsgBtnEl.disabled = false;
             }
         }
 
+        // ========== 页面初始化 ==========
+        async function init() {
+            try {
+                // 检查登录状态
+                const userStr = localStorage.getItem('caitlab_currentUser');
+                if (!userStr) throw new Error('未找到登录信息，请先登录');
+                currentUser = JSON.parse(userStr);
+                loginUsername = currentUser.username;
+                loginNickname = currentUser.nickname || currentUser.username;
+                loginLevel = currentUser.level || '1';
+
+                // 检查管理员身份
+                isAdmin = await checkIsAdmin(loginUsername);
+                // 缓存当前用户信息
+                cache.userInfo[loginUsername] = { nickname: loginNickname, level: loginLevel, isAdmin };
+
+                // 更新页面头部
+                loginNicknameEl.textContent = loginNickname;
+                loginLevelEl.textContent = `Lv.${loginLevel}`;
+                if (isAdmin) loginAdminBadgeEl.style.display = 'inline-block';
+
+                // 加载聊天记录
+                await loadChatHistory();
+                // 绑定事件
+                bindEvent();
+                // 启动自动同步定时器
+                startSyncTimer();
+
+            } catch (err) {
+                loginNicknameEl.textContent = '未登录';
+                loginLevelEl.style.display = 'none';
+                sendMsgBtnEl.disabled = true;
+                chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">${err.message}</div>`;
+                alert(`登录状态异常：${err.message}`);
+                setTimeout(() => window.location.href = '../auth/login/index.html', 2000);
+            }
+        }
+
+        // 绑定页面事件
+        function bindEvent() {
+            // 发送按钮点击
+            sendMsgBtnEl.addEventListener('click', sendMessage);
+            // 回车发送（shift+回车换行）
+            messageInputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            // 页面卸载时清除定时器
+            window.addEventListener('beforeunload', () => {
+                if (syncTimer) clearInterval(syncTimer);
+            });
+        }
+
+        // 启动自动同步定时器
+        function startSyncTimer() {
+            if (syncTimer) clearInterval(syncTimer);
+            syncTimer = setInterval(() => {
+                // 输入框未聚焦且未在发送中，才同步
+                if (document.activeElement !== messageInputEl && !sendMsgBtnEl.disabled) {
+                    syncRemoteChatHistory();
+                }
+            }, SYNC_INTERVAL);
+            logDebug(`自动同步定时器已启动，间隔${SYNC_INTERVAL/1000}秒`);
+        }
+
+        // 页面加载完成后初始化
         window.onload = init;
     </script>
 </body>
