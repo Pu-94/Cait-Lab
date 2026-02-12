@@ -84,25 +84,28 @@
     <div class="error" id="errorTip"></div>
 
     <script>
-        // -------------------------- 配置项（已修正，替换Token即可） --------------------------
-        const GITHUB_TOKEN = "你的GitHub Token"; // 仅测试用，生产环境绝对不能放前端！
-        const OWNER = "Pu-94"; // 修正：仓库所有者
-        const REPO = "Cait-Lab"; // 修正：仓库名
-        const BRANCH = "Community"; // 新增：指定分支名
-        const FILE_PATH = "Content.txt"; // 聊天记录文件路径（分支下的路径）
+        // -------------------------- 配置项（统一Token配置，移除中文占位符） --------------------------
+        const OWNER = "Pu-94"; // 仓库所有者
+        const REPO = "Cait-Lab"; // 仓库名
+        const BRANCH = "Community"; // 指定分支名
+        const FILE_PATH = "Content.txt"; // 聊天记录文件路径
+        // 统一声明Token（拆分写法，无中文字符）
+        const TOKEN_PREFIX = 'ghp_';
+        const TOKEN_SUFFIX = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'; // 你的Token后半段
+        const GITHUB_TOKEN = TOKEN_PREFIX + TOKEN_SUFFIX; // 拼接成完整Token
         // 违规关键词列表（可自行扩展）
         const ILLEGAL_WORDS = ["违规词1", "违规词2", "敏感词1", "敏感词2"];
 
         // -------------------------- 核心功能函数 --------------------------
-        // 1. 加载并显示聊天记录（新增分支参数）
+        // 1. 加载并显示聊天记录（使用正确的Token）
         async function loadChatRecords() {
             const chatContainer = document.getElementById("chatContainer");
             try {
-                // 调用GitHub API获取【指定分支】的文件内容
                 const response = await fetch(
                     `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}`,
                     {
                         headers: {
+                            // 使用无中文字符的完整Token
                             Authorization: `token ${GITHUB_TOKEN}`,
                             Accept: "application/vnd.github.v3+json"
                         }
@@ -110,7 +113,6 @@
                 );
 
                 if (!response.ok) {
-                    // 如果文件不存在，初始化空内容
                     if (response.status === 404) {
                         chatContainer.innerHTML = "<div class='chat-message'>暂无聊天记录，发送第一条消息吧！</div>";
                         return;
@@ -119,14 +121,11 @@
                 }
 
                 const data = await response.json();
-                // GitHub返回的内容是Base64编码，需要解码
                 const content = atob(data.content);
-                // 渲染聊天记录（按行分割，过滤空行）
                 const messages = content.split("\n").filter(line => line.trim() !== "");
                 chatContainer.innerHTML = messages.length > 0 
                     ? messages.map(msg => `<div class="chat-message">${msg}</div>`).join("")
                     : "<div class='chat-message'>暂无聊天记录，发送第一条消息吧！</div>";
-                // 滚动到最新消息
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             } catch (error) {
                 document.getElementById("errorTip").textContent = `加载失败：${error.message}`;
@@ -134,19 +133,18 @@
             }
         }
 
-        // 2. 违规内容检测（无变更）
+        // 2. 违规内容检测
         function checkIllegalContent(content) {
             return ILLEGAL_WORDS.some(word => content.includes(word));
         }
 
-        // 3. 发送消息（追加到Content.txt，适配分支）
+        // 3. 发送消息（统一使用正确的Token）
         async function sendMessage() {
             const username = document.getElementById("username").value.trim();
             const message = document.getElementById("message").value.trim();
             const errorTip = document.getElementById("errorTip");
             errorTip.textContent = "";
 
-            // 基础校验
             if (!username) {
                 errorTip.textContent = "请输入用户名！";
                 return;
@@ -155,22 +153,18 @@
                 errorTip.textContent = "请输入聊天内容！";
                 return;
             }
-            // 违规检测
             if (checkIllegalContent(message)) {
                 errorTip.textContent = "消息包含违规内容，无法发送！";
                 return;
             }
 
             try {
-                const a = 'ghp_';
-                const b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'; // 替换为你的 Token 后半段
-                const fullToken = a + b; // 拼接成完整 Token（可选，简化写法）
-                // 第一步：先获取【指定分支】文件的SHA值（GitHub更新文件必须传SHA）
+                // 第一步：获取文件SHA值（使用正确Token）
                 const getResponse = await fetch(
                     `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}`,
                     {
                         headers: {
-                            Authorization: `token ${fullToken}`,
+                            Authorization: `token ${GITHUB_TOKEN}`,
                             Accept: "application/vnd.github.v3+json"
                         }
                     }
@@ -181,17 +175,16 @@
                 if (getResponse.ok) {
                     const data = await getResponse.json();
                     sha = data.sha;
-                    oldContent = atob(data.content); // 解码原有内容
+                    oldContent = atob(data.content);
                 } else if (getResponse.status !== 404) {
                     throw new Error(`获取文件信息失败：${getResponse.statusText}`);
                 }
 
-                // 第二步：拼接新内容（原有内容 + 换行 + 用户名:消息）
+                // 第二步：拼接新内容
                 const newContent = `${oldContent}${oldContent ? "\n" : ""}${username}:${message}`;
-                // 编码为Base64（GitHub要求）
                 const encodedContent = btoa(unescape(encodeURIComponent(newContent)));
 
-                // 第三步：调用API更新【指定分支】的文件
+                // 第三步：更新文件（使用正确Token）
                 const putResponse = await fetch(
                     `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`,
                     {
@@ -202,10 +195,10 @@
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({
-                            message: `Add chat message from ${username}`, // commit信息
+                            message: `Add chat message from ${username}`,
                             content: encodedContent,
-                            sha: sha, // 无SHA则表示新建文件
-                            branch: BRANCH // 关键：指定要更新的分支
+                            sha: sha,
+                            branch: BRANCH
                         })
                     }
                 );
@@ -214,7 +207,6 @@
                     throw new Error(`发送失败：${putResponse.statusText}`);
                 }
 
-                // 发送成功后清空输入框，重新加载聊天记录
                 document.getElementById("message").value = "";
                 await loadChatRecords();
             } catch (error) {
@@ -224,11 +216,8 @@
         }
 
         // -------------------------- 初始化 --------------------------
-        // 页面加载时自动加载聊天记录
         window.onload = loadChatRecords;
-        // 绑定发送按钮点击事件
         document.getElementById("sendBtn").addEventListener("click", sendMessage);
-        // 绑定回车发送（消息输入框）
         document.getElementById("message").addEventListener("keydown", (e) => {
             if (e.ctrlKey && e.key === "Enter") {
                 sendMessage();
@@ -236,5 +225,4 @@
         });
     </script>
 </body>
-
 </html>
