@@ -122,6 +122,17 @@
             font-weight: 600;
         }
 
+        .admin-badge {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
         .message-item .time {
             font-size: 10px;
             color: #999;
@@ -154,9 +165,15 @@
             background: #f1f1f1;
             padding: 4px 12px;
             border-radius: 10px;
-            max-width: 50%;
+            max-width: 80%;
             margin-left: auto;
             margin-right: auto;
+        }
+
+        .command-list {
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.6;
         }
 
         /* 消息输入区域 */
@@ -234,6 +251,7 @@
             <div class="user-info">
                 当前登录：<span id="loginNickname">加载中...</span>
                 <span id="loginLevel" class="level-badge" style="margin-left: 5px; font-size: 10px;"></span>
+                <span id="loginAdminBadge" class="admin-badge" style="display: none;">管理员</span>
             </div>
         </div>
 
@@ -247,8 +265,7 @@
             <div class="input-wrapper">
                 <textarea 
                     id="messageInput" 
-                    placeholder="请输入聊天内容，按回车可快速发送...
-支持指令：/Refresh(/Rfr) 刷新 | /clean(/cls) 清空(仅管理员) | /new_Administrator <name>(/new_Admin) 设置管理员(仅Pu_cait)"
+                    placeholder="请输入聊天内容"
                     spellcheck="false"
                 ></textarea>
                 <button id="sendMsgBtn">发送</button>
@@ -265,12 +282,14 @@
         const REPO = 'Cait-Lab';
         const BASE_URL = 'https://api.github.com';
         const CHAT_CONTENT_PATH = 'Community/Content.txt'; // 聊天内容存储路径
-        const ADMIN_USERNAME = 'Pu_cait'; // 超级管理员用户名
+        const ADMIN_FILE_PATH = 'Community/Admin.txt'; // 管理员列表文件路径
+        const SUPER_ADMIN_USERNAME = 'Pu_cait'; // 超级管理员用户名
         const DEBUG = true;
 
         // ========== 核心变量定义 ==========
         const loginNicknameEl = document.getElementById('loginNickname');
         const loginLevelEl = document.getElementById('loginLevel');
+        const loginAdminBadgeEl = document.getElementById('loginAdminBadge');
         const messageInputEl = document.getElementById('messageInput');
         const sendMsgBtnEl = document.getElementById('sendMsgBtn');
         const chatMessagesEl = document.getElementById('chatMessages');
@@ -280,6 +299,7 @@
         let loginUsername = ''; // 用户名（用于匹配消息发送者/权限校验）
         let loginNickname = ''; // 昵称（用于展示）
         let loginLevel = ''; // 等级
+        let isAdmin = false; // 是否是管理员
 
         // ========== 工具函数（复用登录页逻辑） ==========
         // 调试输出
@@ -425,29 +445,133 @@
                 const levelFile = await readFile(`users/${username}/Level.txt`);
                 const level = levelFile ? levelFile.content.trim() || '1' : '1';
 
-                return { nickname, level };
+                // 检查是否是管理员
+                const isAdmin = await checkIsAdmin(username);
+
+                return { nickname, level, isAdmin };
             } catch (error) {
                 logDebug(`获取用户信息失败: ${error.message}`);
                 // 兜底返回用户名和默认等级
-                return { nickname: username, level: '1' };
+                return { nickname: username, level: '1', isAdmin: false };
+            }
+        }
+
+        // ========== 管理员相关逻辑 ==========
+        // 读取管理员列表
+        async function getAdminList() {
+            logDebug(`读取管理员列表`);
+            try {
+                const fileExists = await checkFileExists(ADMIN_FILE_PATH);
+                if (!fileExists) return [SUPER_ADMIN_USERNAME]; // 默认超级管理员
+
+                const fileData = await readFile(ADMIN_FILE_PATH);
+                if (!fileData || !fileData.content) return [SUPER_ADMIN_USERNAME];
+
+                // 按行分割管理员列表（每行一个用户名）
+                const adminList = fileData.content.split('\n')
+                    .map(admin => admin.trim())
+                    .filter(admin => admin); // 过滤空行
+                
+                // 确保超级管理员始终在列表中
+                if (!adminList.includes(SUPER_ADMIN_USERNAME)) {
+                    adminList.push(SUPER_ADMIN_USERNAME);
+                }
+
+                return adminList;
+            } catch (error) {
+                logDebug(`读取管理员列表失败: ${error.message}`);
+                return [SUPER_ADMIN_USERNAME]; // 兜底返回超级管理员
+            }
+        }
+
+        // 检查用户是否是管理员
+        async function checkIsAdmin(username) {
+            const adminList = await getAdminList();
+            return adminList.includes(username);
+        }
+
+        // 添加管理员
+        async function addAdmin(targetUsername) {
+            logDebug(`添加管理员: ${targetUsername}`);
+            try {
+                // 1. 检查目标用户是否存在
+                const userExists = await checkFileExists(`users/${targetUsername}/Nickname.txt`);
+                if (!userExists) {
+                    return { success: false, message: `用户不存在：${targetUsername}` };
+                }
+
+                // 2. 检查是否已是管理员
+                const isAlreadyAdmin = await checkIsAdmin(targetUsername);
+                if (isAlreadyAdmin) {
+                    return { success: false, message: `${targetUsername} 已是管理员` };
+                }
+
+                // 3. 读取现有管理员列表
+                const adminList = await getAdminList();
+                adminList.push(targetUsername);
+
+                // 4. 去重并写入文件
+                const uniqueAdminList = [...new Set(adminList)];
+                const adminContent = uniqueAdminList.join('\n');
+                
+                // 检查管理员文件是否存在
+                const fileExists = await checkFileExists(ADMIN_FILE_PATH);
+                let fileSha = null;
+                if (fileExists) {
+                    const fileData = await readFile(ADMIN_FILE_PATH);
+                    fileSha = fileData.sha;
+                }
+
+                // 写入管理员文件
+                await writeFile(
+                    ADMIN_FILE_PATH,
+                    adminContent,
+                    `Add admin: ${targetUsername} by ${loginUsername}`,
+                    fileSha
+                );
+
+                return { success: true, message: `✅ 已将 ${targetUsername} 设置为管理员` };
+            } catch (error) {
+                logDebug(`添加管理员失败: ${error.message}`);
+                return { success: false, message: `添加失败：${error.message}` };
             }
         }
 
         // ========== 指令处理逻辑 ==========
+        // 指令列表（用于/Help展示）
+        const commandList = [
+            { full: '/Help', short: '/H', desc: '查看所有支持的指令' },
+            { full: '/Refresh', short: '/Rfr', desc: '刷新聊天记录（所有人可用）' },
+            { full: '/clean', short: '/cls', desc: '清空所有聊天记录（仅管理员可用）' },
+            { full: '/new_Administrator <用户名>', short: '/new_Admin <用户名>', desc: '设置管理员（仅Pu_cait可用）' }
+        ];
+
         // 解析并执行指令
         async function parseCommand(commandStr) {
             const cmd = commandStr.trim().toLowerCase();
             let feedback = '';
 
-            // 1. 刷新指令 (/Refresh /Rfr)
+            // 1. 帮助指令 (/Help /H)
+            if (cmd === '/help' || cmd === '/h') {
+                const commandHtml = commandList.map(item => 
+                    `<div>• ${item.full} (${item.short})：${item.desc}</div>`
+                ).join('');
+                addSystemMessage(`
+                    <div>📋 支持的指令列表：</div>
+                    <div class="command-list">${commandHtml}</div>
+                `);
+                return;
+            }
+
+            // 2. 刷新指令 (/Refresh /Rfr)
             if (cmd === '/refresh' || cmd === '/rfr') {
                 await loadChatHistory();
                 feedback = '✅ 聊天记录已刷新';
             }
-            // 2. 清空指令 (/clean /cls) - 仅Pu_cait可用
+            // 3. 清空指令 (/clean /cls) - 仅管理员可用
             else if (cmd === '/clean' || cmd === '/cls') {
-                if (loginUsername !== ADMIN_USERNAME) {
-                    feedback = '❌ 权限不足：仅Pu_cait可执行清空操作';
+                if (!isAdmin && loginUsername !== SUPER_ADMIN_USERNAME) {
+                    feedback = '❌ 权限不足：仅管理员可执行清空操作';
                 } else {
                     const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
                     if (!fileExists) {
@@ -464,9 +588,9 @@
                     }
                 }
             }
-            // 3. 设置管理员指令 (/new_Administrator /new_Admin) - 仅Pu_cait可用
+            // 4. 设置管理员指令 (/new_Administrator /new_Admin) - 仅Pu_cait可用
             else if (cmd.startsWith('/new_administrator') || cmd.startsWith('/new_admin')) {
-                if (loginUsername !== ADMIN_USERNAME) {
+                if (loginUsername !== SUPER_ADMIN_USERNAME) {
                     feedback = '❌ 权限不足：仅Pu_cait可设置管理员';
                 } else {
                     // 提取目标用户名
@@ -475,32 +599,25 @@
                         feedback = '❌ 指令格式错误：/new_Admin <用户名>';
                     } else {
                         const targetUsername = parts[1].trim();
-                        // 检查目标用户是否存在
-                        const userExists = await checkFileExists(`users/${targetUsername}/Nickname.txt`);
-                        if (!userExists) {
-                            feedback = `❌ 用户不存在：${targetUsername}`;
-                        } else {
-                            // 这里可扩展：写入管理员标记文件，示例仅反馈
-                            feedback = `✅ 已将 ${targetUsername} 设置为管理员`;
-                        }
+                        const result = await addAdmin(targetUsername);
+                        feedback = result.message;
                     }
                 }
             }
             // 未知指令
             else {
-                feedback = `❌ 未知指令：${commandStr}`;
+                feedback = `❌ 未知指令：${commandStr}（输入/Help查看所有指令）`;
             }
 
             // 显示指令反馈
             addSystemMessage(feedback);
-            return feedback;
         }
 
         // 添加系统提示消息
         function addSystemMessage(content) {
             const systemMsg = document.createElement('div');
             systemMsg.className = 'system-message';
-            systemMsg.textContent = content;
+            systemMsg.innerHTML = content;
             chatMessagesEl.appendChild(systemMsg);
             // 滚动到底部
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -520,9 +637,15 @@
                 loginNickname = currentUser.nickname || currentUser.username;
                 loginLevel = currentUser.level || '1';
                 
+                // 检查是否是管理员
+                isAdmin = await checkIsAdmin(loginUsername);
+                
                 // 更新头部显示
                 loginNicknameEl.textContent = loginNickname;
                 loginLevelEl.textContent = `Lv.${loginLevel}`;
+                if (isAdmin) {
+                    loginAdminBadgeEl.style.display = 'inline-block';
+                }
 
                 // 2. 加载历史消息
                 await loadChatHistory();
@@ -586,7 +709,7 @@
         async function renderMessages(messages) {
             chatMessagesEl.innerHTML = ''; // 清空容器
 
-            // 批量获取用户信息，减少API调用（可选优化）
+            // 批量获取用户信息，减少API调用
             const userCache = {};
             for (const msgLine of messages) {
                 // 分割格式：用户名|时间戳:内容
@@ -605,10 +728,13 @@
                 if (!userCache[senderUsername]) {
                     userCache[senderUsername] = await getUserNicknameAndLevel(senderUsername);
                 }
-                const { nickname, level } = userCache[senderUsername];
+                const { nickname, level, isAdmin } = userCache[senderUsername];
 
                 // 判断是否是自己的消息
                 const isSelf = senderUsername === loginUsername;
+
+                // 管理员徽章
+                const adminBadge = isAdmin ? '<span class="admin-badge">管理员</span>' : '';
 
                 // 创建消息DOM
                 const messageItem = document.createElement('div');
@@ -617,6 +743,7 @@
                     <div class="sender">
                         ${nickname}
                         <span class="level-badge">Lv.${level}</span>
+                        ${adminBadge}
                     </div>
                     <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
                     <div class="time">${formatTime(timestamp)}</div>
@@ -633,7 +760,7 @@
             // 1. 校验输入
             const inputContent = messageInputEl.value.trim();
             if (!inputContent) {
-                alert('消息内容不能为空！');
+                alert('请输入聊天内容'); // 空输入提示
                 return;
             }
             sendMsgBtnEl.disabled = true;
