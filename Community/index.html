@@ -777,37 +777,59 @@
             }
         }
 
-        function renderChatHistory(messages) {
-            chatMessagesEl.innerHTML = '';
-            messages.forEach(async (msgLine) => {
-                const firstSplit = msgLine.indexOf('|');
-                const secondSplit = msgLine.indexOf(':', firstSplit + 1);
-                if (firstSplit === -1 || secondSplit === -1) return;
+        async function renderChatHistory(messages) {
+    chatMessagesEl.innerHTML = '';
+    
+    // 第一步：收集所有需要查询的用户，批量获取信息（避免重复请求）
+    const userNames = new Set();
+    const messageList = [];
+    
+    // 先解析所有消息，收集用户和消息数据
+    for (const msgLine of messages) {
+        const firstSplit = msgLine.indexOf('|');
+        const secondSplit = msgLine.indexOf(':', firstSplit + 1);
+        if (firstSplit === -1 || secondSplit === -1) continue;
 
-                const senderUsername = msgLine.substring(0, firstSplit).trim();
-                const timestamp = msgLine.substring(firstSplit + 1, secondSplit).trim();
-                const msgContent = msgLine.substring(secondSplit + 1).trim();
-                if (!senderUsername || !timestamp || !msgContent) return;
+        const senderUsername = msgLine.substring(0, firstSplit).trim();
+        const timestamp = msgLine.substring(firstSplit + 1, secondSplit).trim();
+        const msgContent = msgLine.substring(secondSplit + 1).trim();
+        if (!senderUsername || !timestamp || !msgContent) continue;
 
-                const isSelf = senderUsername === loginUsername;
-                const messageItem = document.createElement('div');
-                messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
-                messageItem.id = `msg_${senderUsername}_${timestamp}`;
-                
-                // 先获取用户信息（包含禁言状态）
-                const userInfo = await getUserNicknameAndLevel(senderUsername);
-                const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
-                const mutedBadge = userInfo.isMuted ? '<span class="muted-badge">已禁言</span>' : ''; // 新增：禁言徽章
-                
-                messageItem.innerHTML = `
-                    <div class="sender">${userInfo.nickname}<span class="level-badge">Lv.${userInfo.level}</span>${adminBadge}${mutedBadge}</div>
-                    <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
-                    <div class="time">${formatTime(timestamp)}</div>
-                `;
-                chatMessagesEl.appendChild(messageItem);
-            });
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-        }
+        userNames.add(senderUsername);
+        messageList.push({
+            senderUsername,
+            timestamp,
+            msgContent,
+            isSelf: senderUsername === loginUsername
+        });
+    }
+    
+    // 批量获取所有用户信息
+    const userInfoMap = {};
+    for (const username of userNames) {
+        userInfoMap[username] = await getUserNicknameAndLevel(username);
+    }
+    
+    // 第二步：统一渲染所有消息
+    for (const msg of messageList) {
+        const messageItem = document.createElement('div');
+        messageItem.className = `message-item ${msg.isSelf ? 'self' : 'other'}`;
+        messageItem.id = `msg_${msg.senderUsername}_${msg.timestamp}`;
+        
+        const userInfo = userInfoMap[msg.senderUsername];
+        const adminBadge = userInfo.isAdmin ? '<span class="admin-badge">管理员</span>' : '';
+        const mutedBadge = userInfo.isMuted ? '<span class="muted-badge">已禁言</span>' : '';
+        
+        messageItem.innerHTML = `
+            <div class="sender">${userInfo.nickname}<span class="level-badge">Lv.${userInfo.level}</span>${adminBadge}${mutedBadge}</div>
+            <div class="content">${msg.msgContent.replace(/\n/g, '<br>')}</div>
+            <div class="time">${formatTime(msg.timestamp)}</div>
+        `;
+        chatMessagesEl.appendChild(messageItem);
+    }
+    
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
 
         async function sendMessage() {
             // 新增：如果被禁言，直接返回
@@ -872,3 +894,4 @@
     </script>
 </body>
 </html>
+
