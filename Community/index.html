@@ -96,15 +96,44 @@
             font-size: 12px;
             margin-bottom: 4px;
             padding: 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .message-item.self .sender {
             color: #0078d4;
             text-align: right;
+            justify-content: flex-end;
         }
 
         .message-item.other .sender {
             color: #666;
+            text-align: left;
+        }
+
+        .level-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .message-item .time {
+            font-size: 10px;
+            color: #999;
+            margin-top: 2px;
+            padding: 0 8px;
+        }
+
+        .message-item.self .time {
+            text-align: right;
+        }
+
+        .message-item.other .time {
             text-align: left;
         }
 
@@ -114,6 +143,20 @@
             line-height: 1.4;
             font-size: 14px;
             word-wrap: break-word;
+        }
+
+        /* 系统提示消息 */
+        .system-message {
+            text-align: center;
+            margin: 8px 0;
+            font-size: 12px;
+            color: #666;
+            background: #f1f1f1;
+            padding: 4px 12px;
+            border-radius: 10px;
+            max-width: 50%;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         /* 消息输入区域 */
@@ -190,6 +233,7 @@
             <h3>Cait-Lab 社区聊天</h3>
             <div class="user-info">
                 当前登录：<span id="loginNickname">加载中...</span>
+                <span id="loginLevel" class="level-badge" style="margin-left: 5px; font-size: 10px;"></span>
             </div>
         </div>
 
@@ -203,7 +247,8 @@
             <div class="input-wrapper">
                 <textarea 
                     id="messageInput" 
-                    placeholder="请输入聊天内容，按回车可快速发送..."
+                    placeholder="请输入聊天内容，按回车可快速发送...
+支持指令：/Refresh(/Rfr) 刷新 | /clean(/cls) 清空(仅管理员) | /new_Administrator <name>(/new_Admin) 设置管理员(仅Pu_cait)"
                     spellcheck="false"
                 ></textarea>
                 <button id="sendMsgBtn">发送</button>
@@ -220,18 +265,21 @@
         const REPO = 'Cait-Lab';
         const BASE_URL = 'https://api.github.com';
         const CHAT_CONTENT_PATH = 'Community/Content.txt'; // 聊天内容存储路径
+        const ADMIN_USERNAME = 'Pu_cait'; // 超级管理员用户名
         const DEBUG = true;
 
         // ========== 核心变量定义 ==========
         const loginNicknameEl = document.getElementById('loginNickname');
+        const loginLevelEl = document.getElementById('loginLevel');
         const messageInputEl = document.getElementById('messageInput');
         const sendMsgBtnEl = document.getElementById('sendMsgBtn');
         const chatMessagesEl = document.getElementById('chatMessages');
         
         // 当前登录用户信息
         let currentUser = null;
-        let loginUsername = ''; // 用户名（用于匹配消息发送者）
+        let loginUsername = ''; // 用户名（用于匹配消息发送者/权限校验）
         let loginNickname = ''; // 昵称（用于展示）
+        let loginLevel = ''; // 等级
 
         // ========== 工具函数（复用登录页逻辑） ==========
         // 调试输出
@@ -239,6 +287,18 @@
             if (DEBUG) {
                 console.log(`[DEBUG] ${message}`, data ? data : '');
             }
+        }
+
+        // 格式化时间（毫秒级时间戳转字符串）
+        function formatTime(timestamp) {
+            const date = new Date(Number(timestamp));
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const seconds = date.getSeconds().toString().padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         }
 
         // 检查文件是否存在
@@ -279,7 +339,7 @@
                 logDebug(`文件内容`, { path, content });
                 return {
                     content: content,
-                    sha: data.sha // 用于更新文件
+                    sha: data.sha // 用于更新/删除文件
                 };
             } catch (error) {
                 logDebug(`读取文件错误: ${error.message}`);
@@ -322,6 +382,130 @@
             }
         }
 
+        // 删除文件
+        async function deleteFile(path, commitMessage, sha) {
+            logDebug(`删除文件: ${path}`, { message: commitMessage, sha });
+            try {
+                const response = await fetch(`${BASE_URL}/repos/${OWNER}/${REPO}/contents/${path}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        sha: sha
+                    })
+                });
+
+                const responseData = await response.json();
+                logDebug(`删除文件响应`, { status: response.status, data: responseData });
+
+                if (!response.ok) {
+                    throw new Error(responseData.message || `HTTP ${response.status}: 删除文件失败`);
+                }
+
+                return responseData;
+            } catch (error) {
+                logDebug(`删除文件错误: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 获取用户昵称和等级
+        async function getUserNicknameAndLevel(username) {
+            logDebug(`获取用户信息: ${username}`);
+            try {
+                // 读取昵称
+                const nicknameFile = await readFile(`users/${username}/Nickname.txt`);
+                const nickname = nicknameFile ? nicknameFile.content.trim() || username : username;
+                
+                // 读取等级
+                const levelFile = await readFile(`users/${username}/Level.txt`);
+                const level = levelFile ? levelFile.content.trim() || '1' : '1';
+
+                return { nickname, level };
+            } catch (error) {
+                logDebug(`获取用户信息失败: ${error.message}`);
+                // 兜底返回用户名和默认等级
+                return { nickname: username, level: '1' };
+            }
+        }
+
+        // ========== 指令处理逻辑 ==========
+        // 解析并执行指令
+        async function parseCommand(commandStr) {
+            const cmd = commandStr.trim().toLowerCase();
+            let feedback = '';
+
+            // 1. 刷新指令 (/Refresh /Rfr)
+            if (cmd === '/refresh' || cmd === '/rfr') {
+                await loadChatHistory();
+                feedback = '✅ 聊天记录已刷新';
+            }
+            // 2. 清空指令 (/clean /cls) - 仅Pu_cait可用
+            else if (cmd === '/clean' || cmd === '/cls') {
+                if (loginUsername !== ADMIN_USERNAME) {
+                    feedback = '❌ 权限不足：仅Pu_cait可执行清空操作';
+                } else {
+                    const fileExists = await checkFileExists(CHAT_CONTENT_PATH);
+                    if (!fileExists) {
+                        feedback = 'ℹ️ 聊天记录为空，无需清空';
+                    } else {
+                        const fileData = await readFile(CHAT_CONTENT_PATH);
+                        await deleteFile(
+                            CHAT_CONTENT_PATH,
+                            `Clear chat by ${loginUsername}`,
+                            fileData.sha
+                        );
+                        await loadChatHistory();
+                        feedback = '🗑️ 聊天记录已清空';
+                    }
+                }
+            }
+            // 3. 设置管理员指令 (/new_Administrator /new_Admin) - 仅Pu_cait可用
+            else if (cmd.startsWith('/new_administrator') || cmd.startsWith('/new_admin')) {
+                if (loginUsername !== ADMIN_USERNAME) {
+                    feedback = '❌ 权限不足：仅Pu_cait可设置管理员';
+                } else {
+                    // 提取目标用户名
+                    const parts = commandStr.trim().split(' ');
+                    if (parts.length < 2) {
+                        feedback = '❌ 指令格式错误：/new_Admin <用户名>';
+                    } else {
+                        const targetUsername = parts[1].trim();
+                        // 检查目标用户是否存在
+                        const userExists = await checkFileExists(`users/${targetUsername}/Nickname.txt`);
+                        if (!userExists) {
+                            feedback = `❌ 用户不存在：${targetUsername}`;
+                        } else {
+                            // 这里可扩展：写入管理员标记文件，示例仅反馈
+                            feedback = `✅ 已将 ${targetUsername} 设置为管理员`;
+                        }
+                    }
+                }
+            }
+            // 未知指令
+            else {
+                feedback = `❌ 未知指令：${commandStr}`;
+            }
+
+            // 显示指令反馈
+            addSystemMessage(feedback);
+            return feedback;
+        }
+
+        // 添加系统提示消息
+        function addSystemMessage(content) {
+            const systemMsg = document.createElement('div');
+            systemMsg.className = 'system-message';
+            systemMsg.textContent = content;
+            chatMessagesEl.appendChild(systemMsg);
+            // 滚动到底部
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
         // ========== 聊天核心逻辑 ==========
         // 初始化
         async function init() {
@@ -334,7 +518,11 @@
                 currentUser = JSON.parse(userStr);
                 loginUsername = currentUser.username; // 核心：用用户名匹配消息发送者
                 loginNickname = currentUser.nickname || currentUser.username;
+                loginLevel = currentUser.level || '1';
+                
+                // 更新头部显示
                 loginNicknameEl.textContent = loginNickname;
+                loginLevelEl.textContent = `Lv.${loginLevel}`;
 
                 // 2. 加载历史消息
                 await loadChatHistory();
@@ -344,6 +532,7 @@
 
             } catch (err) {
                 loginNicknameEl.textContent = '未登录';
+                loginLevelEl.style.display = 'none';
                 sendMsgBtnEl.disabled = true;
                 chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">${err.message}，请重新登录！</div>`;
                 alert(`登录状态异常：${err.message}`);
@@ -383,9 +572,9 @@
                     return;
                 }
 
-                // 解析消息（按行分割，格式：用户名:内容）
+                // 解析消息（格式：用户名|时间戳:内容）
                 const messages = fileData.content.split('\n').filter(line => line.trim());
-                renderMessages(messages);
+                await renderMessages(messages);
 
             } catch (error) {
                 logDebug(`加载历史消息错误: ${error.message}`);
@@ -394,32 +583,46 @@
         }
 
         // 渲染消息到页面
-        function renderMessages(messages) {
+        async function renderMessages(messages) {
             chatMessagesEl.innerHTML = ''; // 清空容器
 
-            messages.forEach(msgLine => {
-                // 分割用户名和内容（只分割第一个冒号，避免内容含冒号）
-                const colonIndex = msgLine.indexOf(':');
-                if (colonIndex === -1) return; // 格式错误，跳过
+            // 批量获取用户信息，减少API调用（可选优化）
+            const userCache = {};
+            for (const msgLine of messages) {
+                // 分割格式：用户名|时间戳:内容
+                const firstSplit = msgLine.indexOf('|');
+                const secondSplit = msgLine.indexOf(':', firstSplit + 1);
+                
+                if (firstSplit === -1 || secondSplit === -1) continue; // 格式错误，跳过
 
-                const senderUsername = msgLine.substring(0, colonIndex).trim();
-                const msgContent = msgLine.substring(colonIndex + 1).trim();
-                if (!senderUsername || !msgContent) return;
+                const senderUsername = msgLine.substring(0, firstSplit).trim();
+                const timestamp = msgLine.substring(firstSplit + 1, secondSplit).trim();
+                const msgContent = msgLine.substring(secondSplit + 1).trim();
+
+                if (!senderUsername || !timestamp || !msgContent) continue;
+
+                // 从缓存获取用户信息，避免重复调用API
+                if (!userCache[senderUsername]) {
+                    userCache[senderUsername] = await getUserNicknameAndLevel(senderUsername);
+                }
+                const { nickname, level } = userCache[senderUsername];
 
                 // 判断是否是自己的消息
                 const isSelf = senderUsername === loginUsername;
-                // 获取展示用的昵称（自己用登录昵称，他人暂时用用户名，可扩展）
-                const displayName = isSelf ? loginNickname : senderUsername;
 
                 // 创建消息DOM
                 const messageItem = document.createElement('div');
                 messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
                 messageItem.innerHTML = `
-                    <div class="sender">${displayName}</div>
+                    <div class="sender">
+                        ${nickname}
+                        <span class="level-badge">Lv.${level}</span>
+                    </div>
                     <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
+                    <div class="time">${formatTime(timestamp)}</div>
                 `;
                 chatMessagesEl.appendChild(messageItem);
-            });
+            }
 
             // 滚动到底部
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -428,16 +631,25 @@
         // 发送消息核心逻辑
         async function sendMessage() {
             // 1. 校验输入
-            const messageContent = messageInputEl.value.trim();
-            if (!messageContent) {
+            const inputContent = messageInputEl.value.trim();
+            if (!inputContent) {
                 alert('消息内容不能为空！');
                 return;
             }
             sendMsgBtnEl.disabled = true;
 
             try {
-                // 2. 构建新消息行（格式：用户名:内容）
-                const newMsgLine = `${loginUsername}:${messageContent}`;
+                // 先判断是否是指令
+                if (inputContent.startsWith('/')) {
+                    await parseCommand(inputContent);
+                    messageInputEl.value = '';
+                    sendMsgBtnEl.disabled = false;
+                    return;
+                }
+
+                // 2. 构建新消息行（格式：用户名|时间戳:内容）
+                const timestamp = Date.now().toString(); // 毫秒级时间戳
+                const newMsgLine = `${loginUsername}|${timestamp}:${inputContent}`;
 
                 // 3. 读取现有内容（用于追加）
                 let existingContent = '';
@@ -470,6 +682,7 @@
             } catch (error) {
                 logDebug(`发送消息错误: ${error.message}`);
                 alert(`发送失败：${error.message}`);
+                addSystemMessage(`❌ 发送失败：${error.message}`);
             } finally {
                 sendMsgBtnEl.disabled = false;
             }
