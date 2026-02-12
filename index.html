@@ -322,122 +322,6 @@
             color: white;
         }
 
-        /* 功能卡片区域 */
-        .features {
-            margin: 80px 0;
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 50px;
-            position: relative;
-        }
-
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: var(--gradient);
-            border-radius: 2px;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-
-        .feature-card {
-            background-color: var(--card-bg);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: var(--shadow);
-            transition: transform 0.3s, box-shadow 0.3s;
-            border: 1px solid var(--border-color);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: var(--hover-shadow);
-        }
-
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-        }
-
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-        }
-
-        /* 项目展示区 */
-        .projects {
-            margin: 80px 0;
-        }
-
-        .projects-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-
-        .project-card {
-            background-color: var(--card-bg);
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: var(--shadow);
-            transition: transform 0.3s, box-shadow 0.3s;
-            border: 1px solid var(--border-color);
-        }
-
-        .project-card:hover {
-            transform: translateY(-10px);
-            box-shadow: var(--hover-shadow);
-        }
-
-        .project-image {
-            height: 200px;
-            background: var(--gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 50px;
-        }
-
-        .project-content {
-            padding: 25px;
-        }
-
-        .project-content h3 {
-            margin-bottom: 15px;
-            font-size: 1.3rem;
-        }
-
-        .project-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 15px;
-        }
-
-        .tag {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-        }
-
         /* 页脚 */
         footer {
             background-color: var(--card-bg);
@@ -546,13 +430,8 @@
                 font-size: 2rem;
             }
             
-            .section-title {
-                font-size: 2rem;
-            }
-            
-            .features-grid,
-            .projects-grid {
-                grid-template-columns: 1fr;
+            .copyright {
+                font-size: 12px;
             }
         }
     </style>
@@ -611,7 +490,7 @@
             <h2>探索人工智能的无限可能</h2>
             <p>Cait-Lab是一个专注于科学计算与人工智能研究的开放平台。我们致力于推动AI技术的发展，为研究人员和开发者提供工具、资源和社区支持。</p>
             <div class="hero-btns">
-                <a href="#projects" class="btn btn-primary">
+                <a href="about.html" class="btn btn-primary">
                     <i class="fas fa-rocket"></i>
                     开始探索
                 </a>
@@ -619,90 +498,6 @@
                     <i class="fas fa-book"></i>
                     了解更多
                 </a>
-            </div>
-        </section>
-
-        <!-- 功能特色区域 -->
-        <section class="features">
-            <h2 class="section-title">实验室特色</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h3>深度学习研究</h3>
-                    <p>专注于深度学习算法的前沿研究，包括计算机视觉、自然语言处理和强化学习等领域。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-calculator"></i>
-                    </div>
-                    <h3>科学计算</h3>
-                    <p>提供强大的科学计算工具和环境，支持数值计算、数据分析和可视化等研究工作。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3>开放社区</h3>
-                    <p>建立开放的学术交流社区，促进研究人员之间的合作与知识共享。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
-                    <h3>教育培训</h3>
-                    <p>提供AI相关的课程和培训资源，帮助更多人学习和掌握人工智能技术。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 项目展示区 -->
-        <section class="projects" id="projects">
-            <h2 class="section-title">热门项目</h2>
-            <div class="projects-grid">
-                <div class="project-card">
-                    <div class="project-image">
-                        <i class="fas fa-robot"></i>
-                    </div>
-                    <div class="project-content">
-                        <h3>智能图像识别系统</h3>
-                        <p>基于深度学习的图像识别系统，支持物体检测、人脸识别和场景分类等多种功能。</p>
-                        <div class="project-tags">
-                            <span class="tag">Python</span>
-                            <span class="tag">PyTorch</span>
-                            <span class="tag">计算机视觉</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="project-card">
-                    <div class="project-image">
-                        <i class="fas fa-language"></i>
-                    </div>
-                    <div class="project-content">
-                        <h3>多语言翻译模型</h3>
-                        <p>支持50多种语言互译的神经网络模型，具有高准确率和实时翻译能力。</p>
-                        <div class="project-tags">
-                            <span class="tag">TensorFlow</span>
-                            <span class="tag">NLP</span>
-                            <span class="tag">Transformer</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="project-card">
-                    <div class="project-image">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="project-content">
-                        <h3>数据可视化平台</h3>
-                        <p>交互式数据可视化工具，支持大规模数据集的实时分析和可视化展示。</p>
-                        <div class="project-tags">
-                            <span class="tag">JavaScript</span>
-                            <span class="tag">D3.js</span>
-                            <span class="tag">数据分析</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
