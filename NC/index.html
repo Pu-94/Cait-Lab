@@ -645,10 +645,21 @@
                 });
                 console.log(`新页面已添加，ID: ${newPageId}`);
             }, 3000);
-
+            setTimeout(() => {
+                const newPageId = PageManager.addPage({
+                    title: "Cait-Community",
+                    description: "这是一个聊天平台。",
+                    category: "tools",
+                    icon: "fas fa-vial",
+                    url: "https://pu-94.github.io/Cait-Lab/Community",
+                    tags: ["聊天", "/", "/"]
+                });
+                console.log(`新页面已添加，ID: ${newPageId}`);
+            }, 3000);
         });
     </script>
 </body>
 </html>
+
 
 
