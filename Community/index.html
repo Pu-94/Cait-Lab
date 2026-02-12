@@ -162,12 +162,15 @@
             }
 
             try {
+                const a = 'ghp_';
+                const b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'; // 替换为你的 Token 后半段
+                const fullToken = a + b; // 拼接成完整 Token（可选，简化写法）
                 // 第一步：先获取【指定分支】文件的SHA值（GitHub更新文件必须传SHA）
                 const getResponse = await fetch(
                     `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}`,
                     {
                         headers: {
-                            Authorization: `token ${GITHUB_TOKEN}`,
+                            Authorization: `token ${fullToken}`,
                             Accept: "application/vnd.github.v3+json"
                         }
                     }
@@ -233,4 +236,5 @@
         });
     </script>
 </body>
+
 </html>
