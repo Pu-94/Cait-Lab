@@ -299,13 +299,11 @@
         const SYSTEM_USERNAME = 'SYSTEM'; // 占位符关键词
         const DEFAULT_SYSTEM_MSG = `${SYSTEM_USERNAME}|${Date.now()}:欢迎来到 Cait-Lab 社区聊天！`; // 默认系统消息
         
-        // Gist 配置
+        // Gist 配置（保留你的原有信息）
         const token_a = 'ghp_';
         const token_b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'
         const GITHUB_TOKEN = token_a+token_b;
-        const CHAT_CONTENT_GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
-        const ADMIN_LIST_GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
-        const MUTED_USERS_GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
+        const GIST_ID = '46a3964342f2b5338bd95b12e3911fba'; // 统一Gist ID
         const GIST_API_URL = 'https://api.github.com/gists';
         
         const DEBUG = true;
@@ -316,7 +314,7 @@
             adminList: [],
             chatHistory: [],
             mutedUsers: [],
-            chatGistSha: ''
+            fileShas: {} // 存储各文件的sha，避免重复请求
         };
 
         // DOM 元素
@@ -344,7 +342,7 @@
                     currentUser = JSON.parse(savedUser);
                     logDebug('读取本地登录用户', currentUser);
                 } else {
-                    // 未登录，跳转到登录页
+                    // 未登录，提示并禁用功能
                     chatMessagesEl.innerHTML = `
                         <div class="login-tip">
                             你还未登录，请先 <a href="login.html">登录</a> 后再使用聊天室！
@@ -378,85 +376,123 @@
             return true;
         }
 
-        // ========== Gist 读写核心函数 ==========
-        async function readGist(gistId, fileName) {
+        // ========== 核心优化：Gist 读写（禁用缓存 + 直接读原始内容） ==========
+        /**
+         * 读取Gist文件（强制禁用缓存）
+         * @param {string} fileName 文件名（chat_content.md/admin_list.md/muted_users.md）
+         * @returns {Promise<{content: string, sha: string}>}
+         */
+        async function readGistFile(fileName) {
             try {
-                const response = await fetch(`${GIST_API_URL}/${gistId}`, {
+                // 第一步：获取Gist详情（拿到文件的原始地址和sha）
+                const gistResponse = await fetch(`${GIST_API_URL}/${GIST_ID}`, {
                     headers: { 
                         'Authorization': `token ${GITHUB_TOKEN}`, 
-                        'Accept': 'application/vnd.github.v3+json' 
-                    }
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Cache-Control': 'no-cache', // 禁用缓存
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+                    cache: 'no-store' // 彻底禁用浏览器缓存
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
+
+                if (!gistResponse.ok) throw new Error(`获取Gist详情失败: HTTP ${gistResponse.status}`);
+                const gistData = await gistResponse.json();
+
+                // 第二步：检查文件是否存在
+                const targetFile = gistData.files[fileName];
+                if (!targetFile) {
+                    // 文件不存在则返回默认值
+                    const defaultContent = fileName === 'chat_content.md' ? DEFAULT_SYSTEM_MSG : 
+                                           fileName === 'admin_list.md' ? SUPER_ADMIN_USERNAME : SYSTEM_USERNAME;
+                    return { content: defaultContent, sha: '' };
+                }
+
+                // 第三步：直接请求原始内容（跳过CDN缓存）
+                const rawResponse = await fetch(targetFile.raw_url, {
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+                    cache: 'no-store'
+                });
+
+                if (!rawResponse.ok) throw new Error(`读取原始内容失败: HTTP ${rawResponse.status}`);
+                const content = await rawResponse.text();
                 
-                const targetFile = data.files[fileName];
-                if (!targetFile) throw new Error(`文件 ${fileName} 不存在`);
-                
-                return {
-                    content: targetFile.content || '',
-                    sha: targetFile.sha,
-                    gistSha: data.sha
-                };
+                // 保存sha用于更新
+                cache.fileShas[fileName] = targetFile.sha;
+
+                return { content: content || '', sha: targetFile.sha };
             } catch (error) {
-                logDebug(`读取Gist错误: ${error.message}`);
-                if (fileName === 'chat_content.md') return { content: DEFAULT_SYSTEM_MSG, sha: '', gistSha: '' };
-                if (fileName === 'admin_list.md') return { content: SUPER_ADMIN_USERNAME, sha: '', gistSha: '' };
-                if (fileName === 'muted_users.md') return { content: SYSTEM_USERNAME, sha: '', gistSha: '' };
-                return { content: '', sha: '', gistSha: '' };
+                logDebug(`读取Gist文件错误[${fileName}]: ${error.message}`);
+                // 返回默认值兜底
+                const defaultContent = fileName === 'chat_content.md' ? DEFAULT_SYSTEM_MSG : 
+                                       fileName === 'admin_list.md' ? SUPER_ADMIN_USERNAME : SYSTEM_USERNAME;
+                return { content: defaultContent, sha: '' };
             }
         }
 
-        async function writeGist(gistId, content, fileName, originalGistSha = '') {
+        /**
+         * 写入Gist文件（强制更新）
+         * @param {string} fileName 文件名
+         * @param {string} content 要写入的内容
+         * @returns {Promise<{success: boolean, message: string}>}
+         */
+        async function writeGistFile(fileName, content) {
             try {
+                // 先获取当前文件的sha（用于更新）
+                const { sha } = await readGistFile(fileName);
+
                 const requestBody = {
                     files: {
                         [fileName]: {
-                            content: content
+                            content: content,
+                            ...(sha ? { sha: sha } : {}) // 有sha则更新，无则创建
                         }
                     }
                 };
 
-                const response = await fetch(`${GIST_API_URL}/${gistId}`, {
+                const response = await fetch(`${GIST_API_URL}/${GIST_ID}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `token ${GITHUB_TOKEN}`,
                         'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    cache: 'no-store'
                 });
                 
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-                return { success: true, sha: data.files[fileName].sha, gistSha: data.sha };
+                
+                // 更新缓存的sha
+                cache.fileShas[fileName] = data.files[fileName].sha;
+                return { success: true, message: '操作成功' };
             } catch (error) {
-                logDebug(`写入Gist错误: ${error.message}`);
+                logDebug(`写入Gist文件错误[${fileName}]: ${error.message}`);
                 return { success: false, message: error.message };
             }
         }
 
-        // ========== 聊天记录处理 ==========
+        // ========== 聊天记录处理（优化缓存） ==========
         async function getChatHistory() {
             if (cache.chatHistory.length > 0) return cache.chatHistory;
-            const gistData = await readGist(CHAT_CONTENT_GIST_ID, 'chat_content.md');
-            let chatLines = gistData.content.split('\n').filter(line => line.trim());
+            const { content } = await readGistFile('chat_content.md');
+            let chatLines = content.split('\n').filter(line => line.trim());
             if (chatLines.length === 0) chatLines = [DEFAULT_SYSTEM_MSG];
             cache.chatHistory = chatLines;
-            cache.chatGistSha = gistData.gistSha;
             return cache.chatHistory;
         }
 
         async function saveChatMessage(newMsg) {
-            const gistData = await readGist(CHAT_CONTENT_GIST_ID, 'chat_content.md');
-            const existingContent = gistData.content;
-            const newContent = `${existingContent}\n${newMsg}`;
-            const result = await writeGist(
-                CHAT_CONTENT_GIST_ID,
-                newContent,
-                'chat_content.md',
-                gistData.gistSha
-            );
+            const { content } = await readGistFile('chat_content.md');
+            const newContent = `${content}\n${newMsg}`;
+            const result = await writeGistFile('chat_content.md', newContent);
             if (result.success) {
                 cache.chatHistory = newContent.split('\n').filter(line => line.trim());
             }
@@ -464,12 +500,7 @@
         }
 
         async function clearChatHistory() {
-            const result = await writeGist(
-                CHAT_CONTENT_GIST_ID,
-                DEFAULT_SYSTEM_MSG,
-                'chat_content.md',
-                cache.chatGistSha || (await readGist(CHAT_CONTENT_GIST_ID, 'chat_content.md')).gistSha
-            );
+            const result = await writeGistFile('chat_content.md', DEFAULT_SYSTEM_MSG);
             if (result.success) {
                 cache.chatHistory = [DEFAULT_SYSTEM_MSG];
                 addSystemMessage('✅ 聊天记录已清空（保留系统消息）');
@@ -481,20 +512,14 @@
         // ========== 管理员列表处理 ==========
         async function getAdminList() {
             if (cache.adminList.length > 0) return cache.adminList;
-            const gistData = await readGist(ADMIN_LIST_GIST_ID, 'admin_list.md');
-            let adminList = gistData.content.split('\n').map(a => a.trim()).filter(a => a);
+            const { content } = await readGistFile('admin_list.md');
+            let adminList = content.split('\n').map(a => a.trim()).filter(a => a);
             if (!adminList.includes(SUPER_ADMIN_USERNAME)) {
                 adminList.push(SUPER_ADMIN_USERNAME);
-                await saveAdminList(adminList);
+                await writeGistFile('admin_list.md', adminList.join('\n'));
             }
             cache.adminList = adminList;
             return adminList;
-        }
-
-        async function saveAdminList(adminList) {
-            const content = adminList.join('\n');
-            const gistData = await readGist(ADMIN_LIST_GIST_ID, 'admin_list.md');
-            return await writeGist(ADMIN_LIST_GIST_ID, content, 'admin_list.md', gistData.gistSha);
         }
 
         async function checkIsAdmin(username) {
@@ -507,8 +532,9 @@
             const list = await getAdminList();
             if (list.includes(target)) return { success: false, msg: '❌ 该用户已是管理员' };
             list.push(target);
-            const ok = await saveAdminList(list);
-            return ok ? { success: true, msg: `✅ 已将 ${target} 设置为管理员` } : { success: false, msg: '❌ 保存失败' };
+            const result = await writeGistFile('admin_list.md', list.join('\n'));
+            if (result.success) cache.adminList = list;
+            return result.success ? { success: true, msg: `✅ 已将 ${target} 设置为管理员` } : { success: false, msg: '❌ 保存失败' };
         }
 
         async function removeAdmin(target) {
@@ -516,25 +542,20 @@
             const list = await getAdminList();
             if (!list.includes(target)) return { success: false, msg: '❌ 该用户不是管理员' };
             const newList = list.filter(u => u !== target);
-            const ok = await saveAdminList(newList);
-            return ok ? { success: true, msg: `✅ 已解除 ${target} 的管理员权限` } : { success: false, msg: '❌ 保存失败' };
+            const result = await writeGistFile('admin_list.md', newList.join('\n'));
+            if (result.success) cache.adminList = newList;
+            return result.success ? { success: true, msg: `✅ 已解除 ${target} 的管理员权限` } : { success: false, msg: '❌ 保存失败' };
         }
 
         // ========== 禁言列表处理 ==========
         async function getMutedUsers() {
             if (cache.mutedUsers.length > 0) return cache.mutedUsers;
-            const gistData = await readGist(MUTED_USERS_GIST_ID, 'muted_users.md');
-            const mutedUsers = gistData.content.split('\n')
+            const { content } = await readGistFile('muted_users.md');
+            const mutedUsers = content.split('\n')
                 .map(u => u.trim())
                 .filter(u => u && u !== SYSTEM_USERNAME);
             cache.mutedUsers = mutedUsers;
             return mutedUsers;
-        }
-
-        async function saveMutedUsers(mutedUsers) {
-            const content = mutedUsers.length > 0 ? mutedUsers.join('\n') : SYSTEM_USERNAME;
-            const gistData = await readGist(MUTED_USERS_GIST_ID, 'muted_users.md');
-            return await writeGist(MUTED_USERS_GIST_ID, content, 'muted_users.md', gistData.gistSha);
         }
 
         async function checkIsMuted(username) {
@@ -549,16 +570,20 @@
             const list = await getMutedUsers();
             if (list.includes(target)) return { success: false, msg: '❌ 该用户已被禁言' };
             list.push(target);
-            const ok = await saveMutedUsers(list);
-            return ok ? { success: true, msg: `✅ 已禁言 ${target}` } : { success: false, msg: '❌ 保存失败' };
+            const content = list.length > 0 ? list.join('\n') : SYSTEM_USERNAME;
+            const result = await writeGistFile('muted_users.md', content);
+            if (result.success) cache.mutedUsers = list;
+            return result.success ? { success: true, msg: `✅ 已禁言 ${target}` } : { success: false, msg: '❌ 保存失败' };
         }
 
         async function removeMuted(target) {
             const list = await getMutedUsers();
             if (!list.includes(target)) return { success: false, msg: '❌ 该用户未被禁言' };
             const newList = list.filter(u => u !== target);
-            const ok = await saveMutedUsers(newList);
-            return ok ? { success: true, msg: `✅ 已解除 ${target} 的禁言` } : { success: false, msg: '❌ 保存失败' };
+            const content = newList.length > 0 ? newList.join('\n') : SYSTEM_USERNAME;
+            const result = await writeGistFile('muted_users.md', content);
+            if (result.success) cache.mutedUsers = newList;
+            return result.success ? { success: true, msg: `✅ 已解除 ${target} 的禁言` } : { success: false, msg: '❌ 保存失败' };
         }
 
         // ========== 消息渲染 ==========
@@ -642,8 +667,10 @@
                     break;
                 case '/refresh':
                 case '/rfr':
+                    // 刷新时清空缓存，强制重新读取
+                    cache.chatHistory = [];
                     await loadChatHistory(true);
-                    addSystemMessage('✅ 聊天记录已刷新');
+                    addSystemMessage('✅ 聊天记录已刷新（最新内容）');
                     break;
                 case '/clean':
                 case '/cls':
@@ -738,6 +765,8 @@
                 
                 if (result.success) {
                     messageInputEl.value = '';
+                    // 发送成功后强制刷新聊天记录
+                    cache.chatHistory = [];
                     await loadChatHistory(true);
                 } else {
                     throw new Error(result.message || '发送失败');
@@ -753,7 +782,7 @@
         // ========== 初始化 ==========
         async function loadChatHistory(isForce = false) {
             try {
-                chatMessagesEl.innerHTML = '<div class="loading">正在加载聊天记录...</div>';
+                chatMessagesEl.innerHTML = '<div class="loading">正在加载最新聊天记录...</div>';
                 await getChatHistory();
                 await renderChatHistory(cache.chatHistory);
             } catch (error) {
@@ -794,7 +823,7 @@
                 addSystemMessage('⚠️ 你已被禁言，无法发送消息');
             }
 
-            // 加载聊天记录
+            // 加载最新聊天记录
             await loadChatHistory();
 
             // 绑定事件
@@ -807,6 +836,7 @@
             });
         }
 
+        // 页面加载完成后初始化
         window.onload = init;
     </script>
 </body>
