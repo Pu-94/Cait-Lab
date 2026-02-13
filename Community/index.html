@@ -258,9 +258,9 @@
         <div class="chat-header">
             <h3>Cait-Lab 社区聊天</h3>
             <div class="user-info">
-                当前登录：<span id="loginNickname">Pu_cait</span>
-                <span id="loginLevel" class="level-badge">Lv.999+</span>
-                <span id="loginAdminBadge" class="super-admin-badge">超级管理员</span>
+                当前登录：<span id="loginNickname">加载中...</span>
+                <span id="loginLevel" class="level-badge">Lv.?</span>
+                <span id="loginAdminBadge"></span>
             </div>
         </div>
         <div class="chat-messages" id="chatMessages">
@@ -285,8 +285,8 @@
         const DEFAULT_SYSTEM_MSG = `${SYSTEM_USERNAME}|${Date.now()}:欢迎来到 Cait-Lab 社区聊天！`; // 默认系统消息
         
         // Gist 配置（替换为你的）
-	const token_a = 'ghp_';
-	const token_b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'
+        const token_a = 'ghp_';
+        const token_b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'
         const GITHUB_TOKEN = token_a+token_b;
         const CHAT_CONTENT_GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
         const ADMIN_LIST_GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
@@ -312,13 +312,34 @@
         const sendMsgBtnEl = document.getElementById('sendMsgBtn');
         const chatMessagesEl = document.getElementById('chatMessages');
 
-        // 当前用户信息
-        let currentUser = {
-            username: 'Pu_cait',
-            nickname: 'Cait',
-            level: '999+',
-            isAdmin: true
-        };
+        // ========== 关键修改：从localStorage读取登录用户 ==========
+        let currentUser = null;
+        // 优先读取localStorage中的登录信息
+        try {
+            const savedUser = localStorage.getItem('caitlab_currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                console.log('从本地存储读取到登录用户:', currentUser);
+            } else {
+                // 没有登录信息时，默认使用超级管理员
+                currentUser = {
+                    username: SUPER_ADMIN_USERNAME,
+                    nickname: 'Cait',
+                    level: '999+',
+                    isAdmin: true
+                };
+                console.log('未检测到登录信息，使用默认超级管理员');
+            }
+        } catch (e) {
+            console.error('读取本地登录信息失败:', e);
+            // 读取失败时兜底为超级管理员
+            currentUser = {
+                username: SUPER_ADMIN_USERNAME,
+                nickname: 'Cait',
+                level: '999+',
+                isAdmin: true
+            };
+        }
         let isCurrentUserMuted = false;
 
         // ========== 工具函数 ==========
@@ -568,7 +589,7 @@
                     messageItem.innerHTML = `
                         <div class="sender">
                             ${senderUsername}
-                            <span class="level-badge">Lv.${senderUsername === SUPER_ADMIN_USERNAME ? '999+' : '1'}</span>
+                            <span class="level-badge">Lv.${senderUsername === SUPER_ADMIN_USERNAME ? '999+' : (await getUserLevel(senderUsername) || '1')}</span>
                             ${adminBadge}
                             ${mutedBadge}
                         </div>
@@ -579,6 +600,15 @@
                 chatMessagesEl.appendChild(messageItem);
             }
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
+        // 新增：获取用户等级（从localStorage或默认）
+        async function getUserLevel(username) {
+            if (username === currentUser.username) {
+                return currentUser.level || '1';
+            }
+            // 如果是其他用户，暂时返回1（可扩展从GitHub读取）
+            return '1';
         }
 
         // ========== 指令解析 ==========
@@ -611,7 +641,7 @@
                     break;
                 case '/clean':
                 case '/cls':
-                    if (!currentUser.isAdmin) {
+                    if (!await checkIsAdmin(currentUser.username)) {
                         addSystemMessage('❌ 仅管理员可清空聊天记录');
                         return;
                     }
@@ -645,7 +675,7 @@
                     break;
                 case '/m_usr':
                 case '/m_u':
-                    if (!currentUser.isAdmin) {
+                    if (!await checkIsAdmin(currentUser.username)) {
                         addSystemMessage('❌ 仅管理员可禁言用户');
                         return;
                     }
@@ -658,7 +688,7 @@
                     break;
                 case '/um_usr':
                 case '/um_u':
-                    if (!currentUser.isAdmin) {
+                    if (!await checkIsAdmin(currentUser.username)) {
                         addSystemMessage('❌ 仅管理员可解除禁言');
                         return;
                     }
@@ -729,19 +759,25 @@
         }
 
         async function init() {
-            // 初始化用户信息
-            loginNicknameEl.textContent = currentUser.nickname;
-            loginLevelEl.textContent = `Lv.${currentUser.level}`;
+            // 初始化用户信息（从localStorage读取）
+            loginNicknameEl.textContent = currentUser.nickname || currentUser.username;
+            loginLevelEl.textContent = `Lv.${currentUser.level || '1'}`;
             
-            // 判断是否为超级管理员/普通管理员
-            if (currentUser.username === SUPER_ADMIN_USERNAME) {
+            // 判断当前用户的管理员身份
+            const isSuperAdmin = currentUser.username === SUPER_ADMIN_USERNAME;
+            const isAdmin = await checkIsAdmin(currentUser.username) && !isSuperAdmin;
+            
+            if (isSuperAdmin) {
                 loginAdminBadgeEl.className = 'super-admin-badge';
                 loginAdminBadgeEl.textContent = '超级管理员';
-            } else if (currentUser.isAdmin) {
+                currentUser.isAdmin = true;
+            } else if (isAdmin) {
                 loginAdminBadgeEl.className = 'admin-badge';
                 loginAdminBadgeEl.textContent = '管理员';
+                currentUser.isAdmin = true;
             } else {
                 loginAdminBadgeEl.style.display = 'none';
+                currentUser.isAdmin = false;
             }
 
             // 检查当前用户是否被禁言
