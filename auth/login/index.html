@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cait-Lab - 登录</title>
     <style>
-        /* CSS样式保持不变 */
         * {
             margin: 0;
             padding: 0;
@@ -315,23 +314,16 @@
 
     <script>
         // ==================== 配置部分 ====================
-        // 请将你的GitHub Token替换到下面的变量中
         const a_token = 'ghp_';
         const b_token = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'
-        const GITHUB_TOKEN = a_token + b_token; // 替换为你的Token
+        const GITHUB_TOKEN = a_token + b_token;
         const OWNER = 'pu-94';
         const REPO = 'Cait-Lab';
         const BASE_URL = 'https://api.github.com';
-        
-        // 调试模式
         const DEBUG = true;
-        
-        // 当前登录用户
         let currentUser = null;
         
         // ==================== 工具函数 ====================
-        
-        // 切换选项卡
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
@@ -346,7 +338,6 @@
             clearMessages();
         }
         
-        // 清空消息
         function clearMessages() {
             document.querySelectorAll('.message').forEach(msg => {
                 msg.className = 'message';
@@ -354,7 +345,6 @@
             });
         }
         
-        // 显示消息
         function showMessage(elementId, message, type) {
             const element = document.getElementById(elementId);
             element.innerHTML = message;
@@ -366,7 +356,6 @@
             }
         }
         
-        // 检查密码强度
         function checkPasswordStrength() {
             const password = document.getElementById('register-password').value;
             const strengthBar = document.getElementById('strength-bar');
@@ -391,15 +380,12 @@
         }
         
         // ==================== GitHub API 函数 ====================
-        
-        // 调试输出
         function logDebug(message, data = null) {
             if (DEBUG) {
                 console.log(`[DEBUG] ${message}`, data ? data : '');
             }
         }
         
-        // 创建文件
         async function createFile(path, content, commitMessage) {
             logDebug(`创建文件: ${path}`, { message: commitMessage });
             
@@ -431,7 +417,6 @@
             }
         }
         
-        // 检查文件是否存在
         async function checkFileExists(path) {
             logDebug(`检查文件是否存在: ${path}`);
             
@@ -451,7 +436,6 @@
             }
         }
         
-        // 读取文件内容
         async function readFile(path) {
             logDebug(`读取文件: ${path}`);
             
@@ -479,14 +463,12 @@
             }
         }
         
-        // 检查用户是否存在
         async function checkUserExists(username) {
             const userFolderExists = await checkFileExists(`users/${username}/Nickname.txt`);
             logDebug(`检查用户是否存在: ${username}`, { exists: userFolderExists });
             return userFolderExists;
         }
         
-        // 获取用户信息
         async function getUserInfo(username) {
             logDebug(`获取用户信息: ${username}`);
             
@@ -515,15 +497,12 @@
             }
         }
         
-        // 创建用户
         async function createUser(username, nickname, password) {
             logDebug(`创建用户: ${username}`, { nickname });
             
             try {
-                // 首先检查是否已有用户文件夹
                 const userExists = await checkFileExists(`users/${username}`);
                 
-                // 创建用户文件
                 const files = [
                     { path: `users/${username}/Nickname.txt`, content: nickname },
                     { path: `users/${username}/Password.txt`, content: password },
@@ -547,15 +526,12 @@
         }
         
         // ==================== 业务逻辑函数 ====================
-        
-        // 用户注册
         async function register() {
             const username = document.getElementById('register-username').value.trim();
             const nickname = document.getElementById('register-nickname').value.trim();
             const password = document.getElementById('register-password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
             
-            // 输入验证
             if (!username || !nickname || !password || !confirmPassword) {
                 showMessage('register-message', '请填写所有字段', 'error');
                 return;
@@ -581,34 +557,27 @@
                 return;
             }
             
-            // 显示加载状态
             showMessage('register-message', '正在创建用户，请稍候...', 'info');
             
             try {
-                // 检查用户是否已存在
                 const userExists = await checkUserExists(username);
                 if (userExists) {
                     showMessage('register-message', '用户名已存在', 'error');
                     return;
                 }
                 
-                // 创建用户
                 await createUser(username, nickname, password);
                 
-                // 显示成功消息
                 showMessage('register-message', '🎉 注册成功！请登录', 'success');
                 
-                // 清空表单
                 document.getElementById('register-username').value = '';
                 document.getElementById('register-nickname').value = '';
                 document.getElementById('register-password').value = '';
                 document.getElementById('confirm-password').value = '';
                 
-                // 切换到登录选项卡
                 setTimeout(() => switchTab('login'), 1500);
                 
             } catch (error) {
-                // 更详细的错误处理
                 let errorMessage = '注册失败';
                 
                 if (error.message.includes('Bad credentials')) {
@@ -626,7 +595,6 @@
             }
         }
         
-        // 用户登录
         async function login() {
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
@@ -639,14 +607,12 @@
             showMessage('login-message', '正在验证用户信息...', 'info');
             
             try {
-                // 检查用户是否存在
                 const userExists = await checkUserExists(username);
                 if (!userExists) {
                     showMessage('login-message', '用户不存在', 'error');
                     return;
                 }
                 
-                // 获取用户信息
                 const userInfo = await getUserInfo(username);
                 
                 if (!userInfo || !userInfo.password) {
@@ -654,13 +620,11 @@
                     return;
                 }
                 
-                // 验证密码
                 if (userInfo.password !== password) {
                     showMessage('login-message', '密码错误', 'error');
                     return;
                 }
                 
-                // 登录成功
                 currentUser = {
                     username: username,
                     nickname: userInfo.nickname || username,
@@ -668,22 +632,19 @@
                     exp: userInfo.exp || '0'
                 };
                 
-                // 保存登录状态
                 localStorage.setItem('caitlab_currentUser', JSON.stringify(currentUser));
                 
-                // 显示成功消息
                 showMessage('login-message', 
                     `🎉 登录成功！欢迎 ${currentUser.nickname} <span class="level-badge">Lv.${currentUser.level}</span>`, 
                     'success'
                 );
                 
-                // 清空表单
                 document.getElementById('login-username').value = '';
                 document.getElementById('login-password').value = '';
                 
-                // 重定向到主页
+                // 登录成功后跳转到聊天室（修改为你的聊天室文件路径）
                 setTimeout(() => {
-                    window.location.href = '/Cait-Lab';
+                    window.location.href = 'index.html';
                 }, 1500);
                 
             } catch (error) {
@@ -701,14 +662,12 @@
         
         // ==================== 页面初始化 ====================
         document.addEventListener('DOMContentLoaded', function() {
-            // 选项卡切换
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     switchTab(this.dataset.tab);
                 });
             });
             
-            // 回车键提交
             document.querySelectorAll('input').forEach(input => {
                 input.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
@@ -719,7 +678,6 @@
                 });
             });
             
-            // 检查本地存储的登录状态
             try {
                 const savedUser = localStorage.getItem('caitlab_currentUser');
                 if (savedUser) {
@@ -731,7 +689,6 @@
                 console.error('解析本地存储数据失败:', e);
             }
             
-            // 调试信息
             console.log('=== Cait-Lab GitHub API 登录系统 ===');
             console.log('GitHub Token 格式是否正确:', GITHUB_TOKEN.startsWith('ghp_'));
             console.log('仓库:', `${OWNER}/${REPO}`);
@@ -740,7 +697,3 @@
     </script>
 </body>
 </html>
-
-
-
-
