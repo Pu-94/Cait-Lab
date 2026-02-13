@@ -140,23 +140,11 @@
         }
         #sendMsgBtn:disabled {
             background: #999;
-            cursor: not-allowed;
-        }
-        #messageInput:disabled {
-            background: #f5f5f5;
-            cursor: not-allowed;
-            color: #999;
         }
         .loading {
             text-align: center;
             padding: 20px;
             color: #666;
-        }
-        .muted-tip {
-            text-align: center;
-            color: #dc3545;
-            font-size: 12px;
-            margin-top: 8px;
         }
     </style>
 </head>
@@ -178,12 +166,11 @@
             <textarea id="messageInput" placeholder="输入消息... /Help 查看指令"></textarea>
             <button id="sendMsgBtn">发送</button>
         </div>
-        <div id="mutedTip" class="muted-tip" style="display: none;">你已被禁言，无法发送消息！</div>
     </div>
 </div>
 
 <script>
-// ========== 配置 ==========
+// ========== 配置（你的信息不动） ==========
 const SUPER_ADMIN = "Pu_cait";
 const SYSTEM = "SYSTEM";
 const DEFAULT_MSG = `${SYSTEM}|${Date.now()}:欢迎来到 Cait-Lab 社区聊天！`;
@@ -192,12 +179,9 @@ const TOKEN_A = "ghp_";
 const TOKEN_B = "sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7";
 const GITHUB_TOKEN = TOKEN_A + TOKEN_B;
 const GIST_ID = "46a3964342f2b5338bd95b12e3911fba";
-const GIST_URL = `https://gist.github.com/Pu-94/${GIST_ID}`;
-// 跨域代理（解决前端访问Gist网页的跨域问题，仅用于测试）
-const CORS_PROXY = "https://corsproxy.io/?";
 
 // ========== 全局变量 ==========
-let currentUser = { username: "guest", nickname: "游客", level: "1", isAdmin: false, isMuted: false };
+let currentUser = { username: "guest", nickname: "游客", level: "1", isAdmin: false };
 let isMuted = false;
 const cache = { chat: [], admin: [], muted: [] };
 
@@ -208,16 +192,13 @@ const loginBadge = $("loginAdminBadge");
 const msgInput = $("messageInput");
 const sendBtn = $("sendMsgBtn");
 const msgBox = $("chatMessages");
-const mutedTip = $("mutedTip");
 
 // ========== 读取本地登录 ==========
 function loadUser() {
     try {
         let u = localStorage.getItem("caitlab_currentUser");
-        if (u) {
-            currentUser = JSON.parse(u);
-            isMuted = currentUser.isMuted || false;
-        } else {
+        if (u) currentUser = JSON.parse(u);
+        else {
             msgBox.innerHTML = `<div class="system-message">请先登录</div>`;
             msgInput.disabled = true;
             sendBtn.disabled = true;
@@ -225,51 +206,15 @@ function loadUser() {
     } catch (e) {}
 }
 
-// ========== 核心修改：从Gist网页读取文件内容 ==========
-async function getFileFromWebpage(filename) {
-    try {
-        // 使用跨域代理访问Gist网页（解决CORS限制）
-        const response = await fetch(`${CORS_PROXY}${encodeURIComponent(GIST_URL)}`);
-        if (!response.ok) throw new Error("访问Gist网页失败");
-        
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        
-        // 查找对应文件的内容区域（Gist网页的DOM结构）
-        const fileElements = doc.querySelectorAll(".file-box");
-        let fileContent = "";
-        
-        for (const fileEl of fileElements) {
-            // 获取文件名
-            const fileTitle = fileEl.querySelector(".file-title a")?.textContent?.trim();
-            if (fileTitle === filename) {
-                // 提取文件内容（Gist中代码行的选择器）
-                const codeLines = fileEl.querySelectorAll(".blob-code");
-                const contentLines = [];
-                codeLines.forEach(line => {
-                    contentLines.push(line.textContent?.trim() || "");
-                });
-                fileContent = contentLines.join("\n");
-                break;
-            }
-        }
-        
-        return fileContent || "";
-    } catch (error) {
-        console.error("读取Gist网页失败：", error);
-        // 读取失败时返回默认值
-        if (filename === "chat_content.md") return DEFAULT_MSG;
-        return "";
-    }
-}
-
-// 替换原来的getFile函数
+// ========== 最稳 Gist 读写 ==========
 async function getFile(file) {
-    return await getFileFromWebpage(file);
+    let res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}` }
+    });
+    let data = await res.json();
+    return data.files[file]?.content || "";
 }
 
-// ========== 保留原有API写入逻辑 ==========
 async function putFile(file, content) {
     let res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
         method: "PATCH",
@@ -282,24 +227,11 @@ async function putFile(file, content) {
     return res.ok;
 }
 
-// ========== 聊天记录处理 ==========
+// ========== 聊天记录 ==========
 async function loadChat(force = false) {
     if (cache.chat.length && !force) return;
-    
-    // 加载聊天记录
     let txt = await getFile("chat_content.md") || DEFAULT_MSG;
     cache.chat = txt.split("\n").filter(Boolean);
-    
-    // 加载管理员列表
-    let adminTxt = await getFile("admin_list.md") || "";
-    cache.admin = adminTxt.split("\n").filter(Boolean);
-    
-    // 加载禁言用户列表
-    let mutedTxt = await getFile("muted_users.md") || "";
-    cache.muted = mutedTxt.split("\n").filter(Boolean);
-    // 检查当前用户是否被禁言
-    isMuted = cache.muted.includes(currentUser.username);
-    
     render();
 }
 
@@ -315,7 +247,7 @@ async function sendChat(text) {
     }
 }
 
-// ========== 渲染与提示 ==========
+// ========== 渲染 ==========
 function sysMsg(text) {
     msgBox.innerHTML += `<div class="system-message">${text}</div>`;
     msgBox.scrollTop = msgBox.scrollHeight;
@@ -349,15 +281,11 @@ function render() {
     msgBox.scrollTop = msgBox.scrollHeight;
 }
 
-// ========== 指令处理 ==========
+// ========== 指令 ==========
 async function cmd(cmd) {
     cmd = cmd.trim().toLowerCase();
     if (cmd == "/help") sysMsg("📋 /Rfr 刷新 | /cls 清空（管理员）");
-    if (cmd == "/rfr" || cmd == "/refresh") { 
-        cache.chat = []; 
-        await loadChat(true); 
-        sysMsg("✅ 已刷新"); 
-    }
+    if (cmd == "/rfr" || cmd == "/refresh") { cache.chat = []; await loadChat(true); sysMsg("✅ 已刷新"); }
     if (cmd == "/cls" || cmd == "/clean") {
         if (currentUser.username != SUPER_ADMIN) return sysMsg("❌ 无权限");
         await putFile("chat_content.md", DEFAULT_MSG);
@@ -367,13 +295,8 @@ async function cmd(cmd) {
     }
 }
 
-// ========== 发送逻辑 ==========
+// ========== 发送按钮 ==========
 async function send() {
-    if (isMuted) {
-        sysMsg("❌ 你已被禁言，无法发送消息！");
-        return;
-    }
-    
     let t = msgInput.value.trim();
     if (!t) return;
     sendBtn.disabled = true;
@@ -383,23 +306,6 @@ async function send() {
     
     msgInput.value = "";
     sendBtn.disabled = false;
-}
-
-// ========== 禁言状态处理 ==========
-function handleMutedState() {
-    if (isMuted) {
-        msgInput.disabled = true;
-        sendBtn.disabled = true;
-        msgInput.placeholder = "你已被禁言，无法发送消息...";
-        mutedTip.style.display = "block";
-    } else {
-        if (currentUser.username !== "guest") {
-            msgInput.disabled = false;
-            sendBtn.disabled = false;
-            msgInput.placeholder = "输入消息... /Help 查看指令";
-        }
-        mutedTip.style.display = "none";
-    }
 }
 
 // ========== 初始化 ==========
@@ -414,14 +320,10 @@ async function init() {
     }
 
     await loadChat(true);
-    handleMutedState();
     
     sendBtn.onclick = send;
     msgInput.addEventListener("keydown", e => {
-        if (e.key == "Enter" && !e.shiftKey) { 
-            e.preventDefault(); 
-            send(); 
-        }
+        if (e.key == "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
     });
 }
 
