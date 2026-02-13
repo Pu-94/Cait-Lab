@@ -90,6 +90,15 @@
             font-size: 10px;
             margin-left: 4px;
         }
+        .muted-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 4px;
+        }
         .message-item .time {
             font-size: 10px;
             color: #999;
@@ -130,6 +139,11 @@
             min-height: 60px;
             outline: none;
         }
+        #messageInput:disabled {
+            background-color: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
         #sendMsgBtn {
             padding: 12px 25px;
             background: #0078d4;
@@ -140,11 +154,18 @@
         }
         #sendMsgBtn:disabled {
             background: #999;
+            cursor: not-allowed;
         }
         .loading {
             text-align: center;
             padding: 20px;
             color: #666;
+        }
+        .muted-tip {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 8px;
+            text-align: center;
         }
     </style>
 </head>
@@ -166,6 +187,7 @@
             <textarea id="messageInput" placeholder="输入消息... /Help 查看指令"></textarea>
             <button id="sendMsgBtn">发送</button>
         </div>
+        <div id="mutedTip" class="muted-tip" style="display: none;">⚠️ 你已被禁言，无法发送消息</div>
     </div>
 </div>
 
@@ -182,7 +204,7 @@ const GIST_ID = "46a3964342f2b5338bd95b12e3911fba";
 
 // ========== 全局变量 ==========
 let currentUser = { username: "guest", nickname: "游客", level: "1", isAdmin: false };
-let isMuted = false;
+let isMuted = false; // 标记当前用户是否被禁言
 const cache = { chat: [], admin: [], muted: [] };
 
 const $ = (id) => document.getElementById(id);
@@ -192,6 +214,7 @@ const loginBadge = $("loginAdminBadge");
 const msgInput = $("messageInput");
 const sendBtn = $("sendMsgBtn");
 const msgBox = $("chatMessages");
+const mutedTip = $("mutedTip");
 
 // ========== 读取本地登录 ==========
 function loadUser() {
@@ -227,6 +250,38 @@ async function putFile(file, content) {
     return res.ok;
 }
 
+// ========== 禁言列表处理（核心新增） ==========
+async function loadMutedList() {
+    // 读取禁言列表
+    let txt = await getFile("muted_users.md") || "";
+    cache.muted = txt.split("\n").map(u => u.trim()).filter(u => u && u !== SYSTEM);
+    // 检查当前用户是否被禁言
+    isMuted = cache.muted.includes(currentUser.username);
+    // 立刻锁死输入框
+    if (isMuted) {
+        msgInput.disabled = true;
+        sendBtn.disabled = true;
+        msgInput.placeholder = "你已被禁言，无法输入消息";
+        mutedTip.style.display = "block"; // 显示禁言提示
+    }
+}
+
+// ========== 管理员列表处理 ==========
+async function loadAdminList() {
+    let txt = await getFile("admin_list.md") || SUPER_ADMIN;
+    cache.admin = txt.split("\n").map(u => u.trim()).filter(u => u);
+    currentUser.isAdmin = cache.admin.includes(currentUser.username);
+    
+    // 渲染管理员徽章
+    if (currentUser.username === SUPER_ADMIN) {
+        loginBadge.className = "super-admin-badge";
+        loginBadge.textContent = "超级管理员";
+    } else if (currentUser.isAdmin) {
+        loginBadge.className = "admin-badge";
+        loginBadge.textContent = "管理员";
+    }
+}
+
 // ========== 聊天记录 ==========
 async function loadChat(force = false) {
     if (cache.chat.length && !force) return;
@@ -236,6 +291,12 @@ async function loadChat(force = false) {
 }
 
 async function sendChat(text) {
+    // 双重校验：禁言用户直接拦截，不让发送
+    if (isMuted) {
+        sysMsg("❌ 你已被禁言，无法发送消息");
+        return;
+    }
+    
     let old = await getFile("chat_content.md") || DEFAULT_MSG;
     let line = `${currentUser.username}|${Date.now()}:${text}`;
     let ok = await putFile("chat_content.md", old + "\n" + line);
@@ -265,6 +326,7 @@ function render() {
         let self = user == currentUser.username;
         let isSA = user == SUPER_ADMIN;
         let isAdmin = cache.admin.includes(user) && !isSA;
+        let isUserMuted = cache.muted.includes(user); // 检查消息发送者是否被禁言
         
         msgBox.innerHTML += `
         <div class="message-item ${self ? 'self' : 'other'}">
@@ -273,6 +335,7 @@ function render() {
                 <span class="level-badge">Lv.${isSA ? '999+' : '1'}</span>
                 ${isSA ? '<span class="super-admin-badge">超管</span>' : ''}
                 ${isAdmin ? '<span class="admin-badge">管理员</span>' : ''}
+                ${isUserMuted ? '<span class="muted-badge">已禁言</span>' : ''}
             </div>
             <div class="content">${cont}</div>
             <div class="time">${new Date(+time).toLocaleString()}</div>
@@ -284,19 +347,73 @@ function render() {
 // ========== 指令 ==========
 async function cmd(cmd) {
     cmd = cmd.trim().toLowerCase();
-    if (cmd == "/help") sysMsg("📋 /Rfr 刷新 | /cls 清空（管理员）");
-    if (cmd == "/rfr" || cmd == "/refresh") { cache.chat = []; await loadChat(true); sysMsg("✅ 已刷新"); }
+    if (cmd == "/help") sysMsg("📋 /Rfr 刷新 | /cls 清空（管理员） | /M_u <用户名> 禁言（管理员） | /UM_u <用户名> 解除禁言（管理员）");
+    if (cmd == "/rfr" || cmd == "/refresh") { 
+        cache.chat = []; 
+        await loadChat(true); 
+        sysMsg("✅ 已刷新最新聊天记录"); 
+    }
     if (cmd == "/cls" || cmd == "/clean") {
-        if (currentUser.username != SUPER_ADMIN) return sysMsg("❌ 无权限");
+        if (!currentUser.isAdmin) return sysMsg("❌ 仅管理员可清空聊天记录");
         await putFile("chat_content.md", DEFAULT_MSG);
         cache.chat = [];
         await loadChat(true);
-        sysMsg("✅ 已清空");
+        sysMsg("✅ 聊天记录已清空");
+    }
+    // 禁言指令（仅管理员可用）
+    if (cmd.startsWith("/m_u") || cmd.startsWith("/m_usr")) {
+        if (!currentUser.isAdmin) return sysMsg("❌ 仅管理员可禁言用户");
+        let target = cmd.split(" ")[1];
+        if (!target) return sysMsg("❌ 格式错误：/M_u <用户名>");
+        if (target === SUPER_ADMIN) return sysMsg("❌ 不能禁言超级管理员");
+        if (cache.admin.includes(target)) return sysMsg("❌ 不能禁言管理员");
+        
+        let mutedList = [...cache.muted];
+        if (mutedList.includes(target)) return sysMsg("❌ 该用户已被禁言");
+        mutedList.push(target);
+        await putFile("muted_users.md", mutedList.join("\n"));
+        cache.muted = mutedList;
+        // 如果禁言的是当前用户，立刻锁死输入框
+        if (target === currentUser.username) {
+            isMuted = true;
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            msgInput.placeholder = "你已被禁言，无法输入消息";
+            mutedTip.style.display = "block";
+        }
+        sysMsg(`✅ 已禁言 ${target}`);
+        await loadChat(true);
+    }
+    // 解除禁言指令（仅管理员可用）
+    if (cmd.startsWith("/um_u") || cmd.startsWith("/um_usr")) {
+        if (!currentUser.isAdmin) return sysMsg("❌ 仅管理员可解除禁言");
+        let target = cmd.split(" ")[1];
+        if (!target) return sysMsg("❌ 格式错误：/UM_u <用户名>");
+        
+        let mutedList = cache.muted.filter(u => u !== target);
+        await putFile("muted_users.md", mutedList.join("\n") || SYSTEM);
+        cache.muted = mutedList;
+        // 如果解除的是当前用户，立刻解锁输入框
+        if (target === currentUser.username) {
+            isMuted = false;
+            msgInput.disabled = false;
+            sendBtn.disabled = false;
+            msgInput.placeholder = "输入消息... /Help 查看指令";
+            mutedTip.style.display = "none";
+        }
+        sysMsg(`✅ 已解除 ${target} 的禁言`);
+        await loadChat(true);
     }
 }
 
 // ========== 发送按钮 ==========
 async function send() {
+    // 禁言用户直接拦截
+    if (isMuted) {
+        sysMsg("⚠️ 你已被禁言，无法发送消息");
+        return;
+    }
+    
     let t = msgInput.value.trim();
     if (!t) return;
     sendBtn.disabled = true;
@@ -313,17 +430,30 @@ async function init() {
     loadUser();
     loginNick.textContent = currentUser.nickname;
     loginLevel.textContent = `Lv.${currentUser.level}`;
-    
-    if (currentUser.username == SUPER_ADMIN) {
-        loginBadge.className = "super-admin-badge";
-        loginBadge.textContent = "超级管理员";
-    }
 
+    // 先加载禁言列表，立刻锁死禁言用户
+    await loadMutedList();
+    // 加载管理员列表
+    await loadAdminList();
+    // 加载聊天记录
     await loadChat(true);
     
+    // 绑定事件
     sendBtn.onclick = send;
     msgInput.addEventListener("keydown", e => {
-        if (e.key == "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+        if (e.key == "Enter" && !e.shiftKey) { 
+            e.preventDefault(); 
+            send(); 
+        }
+    });
+    
+    // 刷新页面也保持禁言状态
+    window.addEventListener("load", () => {
+        if (isMuted) {
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            mutedTip.style.display = "block";
+        }
     });
 }
 
