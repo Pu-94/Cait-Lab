@@ -11,98 +11,59 @@
             box-sizing: border-box;
             font-family: "Microsoft Yahei", sans-serif;
         }
-
-        body {
-            background-color: #f5f7fa;
-            padding: 20px;
-        }
-
+        body { background-color: #f5f7fa; padding: 20px; }
         .chat-container {
             max-width: 800px;
             margin: 0 auto;
-            background-color: #fff;
+            background: #fff;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
-
         .chat-header {
             padding: 15px 20px;
-            background-color: #0078d4;
+            background: #0078d4;
             color: #fff;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
-        .chat-header h3 {
-            font-size: 18px;
-            font-weight: 500;
-        }
-
-        .user-info {
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .chat-messages {
             height: 500px;
             padding: 20px;
             overflow-y: auto;
-            background-color: #f9f9f9;
+            background: #f9f9f9;
         }
-
         .message-item {
             margin-bottom: 15px;
             max-width: 70%;
             display: flex;
             flex-direction: column;
         }
-
         .message-item.self {
             margin-left: auto;
             align-items: flex-end;
         }
-
         .message-item.self .content {
-            background-color: #0078d4;
+            background: #0078d4;
             color: #fff;
             border-top-right-radius: 0;
         }
-
         .message-item.other {
             margin-right: auto;
             align-items: flex-start;
         }
-
         .message-item.other .content {
-            background-color: #fff;
+            background: #fff;
             color: #333;
             border: 1px solid #eee;
             border-top-left-radius: 0;
         }
-
         .message-item .sender {
             font-size: 12px;
             margin-bottom: 4px;
             padding: 0 8px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
-
-        .message-item.self .sender {
-            color: #0078d4;
-            justify-content: flex-end;
-        }
-
-        .message-item.other .sender {
-            color: #666;
-        }
-
-        /* 徽章样式 */
         .level-badge {
             display: inline-block;
             background: #667eea;
@@ -110,9 +71,7 @@
             padding: 1px 6px;
             border-radius: 10px;
             font-size: 10px;
-            font-weight: 600;
         }
-
         .admin-badge {
             display: inline-block;
             background: #dc3545;
@@ -120,48 +79,22 @@
             padding: 1px 6px;
             border-radius: 10px;
             font-size: 10px;
-            font-weight: 600;
             margin-left: 4px;
         }
-
-        /* 超级管理员绿色徽章 */
         .super-admin-badge {
             display: inline-block;
-            background: #28a745; /* 绿色 */
+            background: #28a745;
             color: white;
             padding: 1px 6px;
             border-radius: 10px;
             font-size: 10px;
-            font-weight: 600;
             margin-left: 4px;
         }
-
-        .muted-badge {
-            display: inline-block;
-            background: #ffc107;
-            color: #333;
-            padding: 1px 6px;
-            border-radius: 10px;
-            font-size: 10px;
-            font-weight: 600;
-            margin-left: 4px;
-        }
-
         .message-item .time {
             font-size: 10px;
             color: #999;
             margin-top: 2px;
-            padding: 0 8px;
         }
-
-        .message-item.self .time {
-            text-align: right;
-        }
-
-        .message-item.other .time {
-            text-align: left;
-        }
-
         .message-item .content {
             padding: 10px 15px;
             border-radius: 18px;
@@ -169,7 +102,6 @@
             font-size: 14px;
             word-wrap: break-word;
         }
-
         .system-message {
             text-align: center;
             margin: 8px 0;
@@ -178,28 +110,16 @@
             background: #f1f1f1;
             padding: 4px 12px;
             border-radius: 10px;
-            max-width: 80%;
-            margin-left: auto;
-            margin-right: auto;
         }
-
-        .command-list {
-            text-align: left;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
         .chat-input-area {
             padding: 15px 20px;
             border-top: 1px solid #eee;
         }
-
         .input-wrapper {
             display: flex;
             gap: 10px;
             align-items: flex-end;
         }
-
         #messageInput {
             flex: 1;
             resize: none;
@@ -209,666 +129,205 @@
             font-size: 14px;
             min-height: 60px;
             outline: none;
-            transition: border-color 0.2s;
         }
-
-        #messageInput:focus {
-            border-color: #0078d4;
-        }
-
         #sendMsgBtn {
             padding: 12px 25px;
-            background-color: #0078d4;
+            background: #0078d4;
             color: #fff;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
         }
-
-        #sendMsgBtn:hover {
-            background-color: #005a9e;
-        }
-
         #sendMsgBtn:disabled {
-            background-color: #999;
-            cursor: not-allowed;
+            background: #999;
         }
-
         .loading {
             text-align: center;
             padding: 20px;
             color: #666;
-            font-size: 14px;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background-color: #ccc;
-            border-radius: 3px;
-        }
-
-        /* 未登录提示 */
-        .login-tip {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
-            font-size: 16px;
-        }
-        .login-tip a {
-            color: #0078d4;
-            text-decoration: none;
-        }
-        .login-tip a:hover {
-            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h3>Cait-Lab 社区聊天</h3>
-            <div class="user-info">
-                当前登录：<span id="loginNickname"></span>
-                <span id="loginLevel" class="level-badge"></span>
-                <span id="loginAdminBadge"></span>
-            </div>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-            <div class="loading">正在加载聊天记录...</div>
-        </div>
-        <div class="chat-input-area">
-            <div class="input-wrapper">
-                <textarea 
-                    id="messageInput" 
-                    placeholder="请输入聊天内容（输入/Help查看指令）"
-                    spellcheck="false"
-                ></textarea>
-                <button id="sendMsgBtn">发送</button>
-            </div>
+<div class="chat-container">
+    <div class="chat-header">
+        <h3>Cait-Lab 社区聊天</h3>
+        <div class="user-info">
+            当前登录：<span id="loginNickname"></span>
+            <span id="loginLevel" class="level-badge"></span>
+            <span id="loginAdminBadge"></span>
         </div>
     </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="loading">加载中...</div>
+    </div>
+    <div class="chat-input-area">
+        <div class="input-wrapper">
+            <textarea id="messageInput" placeholder="输入消息... /Help 查看指令"></textarea>
+            <button id="sendMsgBtn">发送</button>
+        </div>
+    </div>
+</div>
 
-    <script>
-        // ========== 核心配置 ==========
-        const SUPER_ADMIN_USERNAME = 'Pu_cait'; // 超级管理员用户名
-        const SYSTEM_USERNAME = 'SYSTEM'; // 占位符关键词
-        const DEFAULT_SYSTEM_MSG = `${SYSTEM_USERNAME}|${Date.now()}:欢迎来到 Cait-Lab 社区聊天！`; // 默认系统消息
+<script>
+// ========== 配置（你的信息不动） ==========
+const SUPER_ADMIN = "Pu_cait";
+const SYSTEM = "SYSTEM";
+const DEFAULT_MSG = `${SYSTEM}|${Date.now()}:欢迎来到 Cait-Lab 社区聊天！`;
+
+const TOKEN_A = "ghp_";
+const TOKEN_B = "sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7";
+const GITHUB_TOKEN = TOKEN_A + TOKEN_B;
+const GIST_ID = "46a3964342f2b5338bd95b12e3911fba";
+
+// ========== 全局变量 ==========
+let currentUser = { username: "guest", nickname: "游客", level: "1", isAdmin: false };
+let isMuted = false;
+const cache = { chat: [], admin: [], muted: [] };
+
+const $ = (id) => document.getElementById(id);
+const loginNick = $("loginNickname");
+const loginLevel = $("loginLevel");
+const loginBadge = $("loginAdminBadge");
+const msgInput = $("messageInput");
+const sendBtn = $("sendMsgBtn");
+const msgBox = $("chatMessages");
+
+// ========== 读取本地登录 ==========
+function loadUser() {
+    try {
+        let u = localStorage.getItem("caitlab_currentUser");
+        if (u) currentUser = JSON.parse(u);
+        else {
+            msgBox.innerHTML = `<div class="system-message">请先登录</div>`;
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+        }
+    } catch (e) {}
+}
+
+// ========== 最稳 Gist 读写 ==========
+async function getFile(file) {
+    let res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}` }
+    });
+    let data = await res.json();
+    return data.files[file]?.content || "";
+}
+
+async function putFile(file, content) {
+    let res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        method: "PATCH",
+        headers: {
+            Authorization: `token ${GITHUB_TOKEN}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ files: { [file]: { content } } })
+    });
+    return res.ok;
+}
+
+// ========== 聊天记录 ==========
+async function loadChat(force = false) {
+    if (cache.chat.length && !force) return;
+    let txt = await getFile("chat_content.md") || DEFAULT_MSG;
+    cache.chat = txt.split("\n").filter(Boolean);
+    render();
+}
+
+async function sendChat(text) {
+    let old = await getFile("chat_content.md") || DEFAULT_MSG;
+    let line = `${currentUser.username}|${Date.now()}:${text}`;
+    let ok = await putFile("chat_content.md", old + "\n" + line);
+    if (ok) {
+        cache.chat = [];
+        await loadChat(true);
+    } else {
+        sysMsg("❌ 发送失败");
+    }
+}
+
+// ========== 渲染 ==========
+function sysMsg(text) {
+    msgBox.innerHTML += `<div class="system-message">${text}</div>`;
+    msgBox.scrollTop = msgBox.scrollHeight;
+}
+
+function render() {
+    msgBox.innerHTML = "";
+    cache.chat.forEach(line => {
+        let i = line.indexOf("|"), j = line.indexOf(":", i);
+        if (i == -1 || j == -1) return;
+        let user = line.slice(0, i).trim();
+        let time = line.slice(i+1, j).trim();
+        let cont = line.slice(j+1).trim();
         
-        // Gist 配置
-        const token_a = 'ghp_';
-        const token_b = 'sp39r4hPD5KJDtPLUJyV9jIW5wcwcc0HVRF7'
-        const GITHUB_TOKEN = token_a+token_b;
-        const GIST_ID = '46a3964342f2b5338bd95b12e3911fba';
-        const GIST_OWNER = 'Pu-94';
-        // Gist 网页地址（直接读取网页，跳过API缓存）
-        const GIST_WEB_URL = `https://gist.github.com/${GIST_OWNER}/${GIST_ID}`;
-        const GIST_API_URL = 'https://api.github.com/gists';
+        let self = user == currentUser.username;
+        let isSA = user == SUPER_ADMIN;
+        let isAdmin = cache.admin.includes(user) && !isSA;
         
-        const DEBUG = true;
+        msgBox.innerHTML += `
+        <div class="message-item ${self ? 'self' : 'other'}">
+            <div class="sender">
+                ${user}
+                <span class="level-badge">Lv.${isSA ? '999+' : '1'}</span>
+                ${isSA ? '<span class="super-admin-badge">超管</span>' : ''}
+                ${isAdmin ? '<span class="admin-badge">管理员</span>' : ''}
+            </div>
+            <div class="content">${cont}</div>
+            <div class="time">${new Date(+time).toLocaleString()}</div>
+        </div>`;
+    });
+    msgBox.scrollTop = msgBox.scrollHeight;
+}
 
-        // ========== 全局状态 ==========
-        const cache = {
-            userInfo: {},
-            adminList: [],
-            chatHistory: [],
-            mutedUsers: [],
-            chatGistSha: ''
-        };
+// ========== 指令 ==========
+async function cmd(cmd) {
+    cmd = cmd.trim().toLowerCase();
+    if (cmd == "/help") sysMsg("📋 /Rfr 刷新 | /cls 清空（管理员）");
+    if (cmd == "/rfr" || cmd == "/refresh") { cache.chat = []; await loadChat(true); sysMsg("✅ 已刷新"); }
+    if (cmd == "/cls" || cmd == "/clean") {
+        if (currentUser.username != SUPER_ADMIN) return sysMsg("❌ 无权限");
+        await putFile("chat_content.md", DEFAULT_MSG);
+        cache.chat = [];
+        await loadChat(true);
+        sysMsg("✅ 已清空");
+    }
+}
 
-        // DOM 元素
-        const loginNicknameEl = document.getElementById('loginNickname');
-        const loginLevelEl = document.getElementById('loginLevel');
-        const loginAdminBadgeEl = document.getElementById('loginAdminBadge');
-        const messageInputEl = document.getElementById('messageInput');
-        const sendMsgBtnEl = document.getElementById('sendMsgBtn');
-        const chatMessagesEl = document.getElementById('chatMessages');
+// ========== 发送按钮 ==========
+async function send() {
+    let t = msgInput.value.trim();
+    if (!t) return;
+    sendBtn.disabled = true;
+    
+    if (t.startsWith("/")) await cmd(t);
+    else await sendChat(t);
+    
+    msgInput.value = "";
+    sendBtn.disabled = false;
+}
 
-        // ========== 关键：从localStorage读取当前登录用户 ==========
-        let currentUser = {
-            username: 'guest',
-            nickname: '游客',
-            level: '1',
-            isAdmin: false
-        };
-        let isCurrentUserMuted = false;
+// ========== 初始化 ==========
+async function init() {
+    loadUser();
+    loginNick.textContent = currentUser.nickname;
+    loginLevel.textContent = `Lv.${currentUser.level}`;
+    
+    if (currentUser.username == SUPER_ADMIN) {
+        loginBadge.className = "super-admin-badge";
+        loginBadge.textContent = "超级管理员";
+    }
 
-        // 读取localStorage中的登录信息
-        function loadCurrentUser() {
-            try {
-                const savedUser = localStorage.getItem('caitlab_currentUser');
-                if (savedUser) {
-                    currentUser = JSON.parse(savedUser);
-                    logDebug('读取本地登录用户', currentUser);
-                } else {
-                    // 未登录，跳转到登录页
-                    chatMessagesEl.innerHTML = `
-                        <div class="login-tip">
-                            你还未登录，请先 <a href="login.html">登录</a> 后再使用聊天室！
-                        </div>
-                    `;
-                    messageInputEl.disabled = true;
-                    sendMsgBtnEl.disabled = true;
-                    return false;
-                }
-                return true;
-            } catch (e) {
-                logDebug('解析本地用户信息失败', e);
-                return false;
-            }
-        }
+    await loadChat(true);
+    
+    sendBtn.onclick = send;
+    msgInput.addEventListener("keydown", e => {
+        if (e.key == "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+}
 
-        // ========== 工具函数 ==========
-        function logDebug(message, data = null) {
-            if (DEBUG) console.log(`[DEBUG] ${message}`, data ? data : '');
-        }
-
-        function formatTime(timestamp) {
-            const date = new Date(Number(timestamp));
-            return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,0)}-${date.getDate().toString().padStart(2,0)} ${date.getHours().toString().padStart(2,0)}:${date.getMinutes().toString().padStart(2,0)}:${date.getSeconds().toString().padStart(2,0)}`;
-        }
-
-        // 校验用户名（禁止SYSTEM）
-        function isValidUsername(username) {
-            if (!username || username.trim() === '') return false;
-            if (username.trim() === SYSTEM_USERNAME) return false;
-            return true;
-        }
-
-        // ========== 核心修改：直接从Gist网页读取文件内容（跳过API缓存） ==========
-        /**
-         * 从Gist网页解析指定文件的内容
-         * @param {string} fileName 要读取的文件名（如 chat_content.md）
-         * @returns {string} 文件内容
-         */
-        async function readFromGistWeb(fileName) {
-            try {
-                logDebug(`直接读取Gist网页: ${GIST_WEB_URL} 中的 ${fileName}`);
-                
-                // 请求Gist网页，禁用缓存
-                const response = await fetch(GIST_WEB_URL, {
-                    method: 'GET',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    },
-                    mode: 'cors' // 跨域模式
-                });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const html = await response.text();
-
-                // 解析HTML，提取指定文件的内容
-                // 匹配Gist网页中文件内容的DOM结构
-                const fileContentRegex = new RegExp(`<div class="file-box[^>]*">\\s*<div class="file-header[^>]*">\\s*<strong class="file-name">${fileName}</strong>[\\s\\S]*?<div class="blob-wrapper[^>]*">\\s*<pre[^>]*>([\\s\\S]*?)</pre>`, 'i');
-                const match = html.match(fileContentRegex);
-
-                if (!match || !match[1]) {
-                    logDebug(`未找到 ${fileName} 内容，使用默认值`);
-                    // 返回默认值
-                    if (fileName === 'chat_content.md') return DEFAULT_SYSTEM_MSG;
-                    if (fileName === 'admin_list.md') return SUPER_ADMIN_USERNAME;
-                    if (fileName === 'muted_users.md') return SYSTEM_USERNAME;
-                    return '';
-                }
-
-                // 解码HTML实体（&amp; → &, &lt; → < 等）
-                let content = match[1]
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&quot;/g, '"')
-                    .replace(/&#39;/g, "'")
-                    .replace(/<br\s*\/?>/g, '\n') // 替换换行
-                    .replace(/<[^>]+>/g, '') // 移除剩余标签
-                    .trim();
-
-                logDebug(`解析到 ${fileName} 内容`, content.substring(0, 100) + '...');
-                return content;
-
-            } catch (error) {
-                logDebug(`读取Gist网页错误: ${error.message}，降级使用API`);
-                // 降级方案：如果网页读取失败，用原来的API读取
-                const fallbackData = await readGist(GIST_ID, fileName);
-                return fallbackData.content;
-            }
-        }
-
-        // ========== 原有Gist API函数（保留，用于写入） ==========
-        async function readGist(gistId, fileName) {
-            try {
-                const response = await fetch(`${GIST_API_URL}/${gistId}`, {
-                    headers: { 
-                        'Authorization': `token ${GITHUB_TOKEN}`, 
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Cache-Control': 'no-cache' // 禁用缓存
-                    }
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                
-                const targetFile = data.files[fileName];
-                if (!targetFile) throw new Error(`文件 ${fileName} 不存在`);
-                
-                return {
-                    content: targetFile.content || '',
-                    sha: targetFile.sha,
-                    gistSha: data.sha
-                };
-            } catch (error) {
-                logDebug(`读取Gist API错误: ${error.message}`);
-                if (fileName === 'chat_content.md') return { content: DEFAULT_SYSTEM_MSG, sha: '', gistSha: '' };
-                if (fileName === 'admin_list.md') return { content: SUPER_ADMIN_USERNAME, sha: '', gistSha: '' };
-                if (fileName === 'muted_users.md') return { content: SYSTEM_USERNAME, sha: '', gistSha: '' };
-                return { content: '', sha: '', gistSha: '' };
-            }
-        }
-
-        async function writeGist(gistId, content, fileName, originalGistSha = '') {
-            try {
-                const requestBody = {
-                    files: {
-                        [fileName]: {
-                            content: content
-                        }
-                    }
-                };
-
-                const response = await fetch(`${GIST_API_URL}/${gistId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
-                return { success: true, sha: data.files[fileName].sha, gistSha: data.sha };
-            } catch (error) {
-                logDebug(`写入Gist错误: ${error.message}`);
-                return { success: false, message: error.message };
-            }
-        }
-
-        // ========== 聊天记录处理（修改为读取网页） ==========
-        async function getChatHistory() {
-            // 强制从Gist网页读取最新内容，跳过缓存
-            const content = await readFromGistWeb('chat_content.md');
-            let chatLines = content.split('\n').filter(line => line.trim());
-            if (chatLines.length === 0) chatLines = [DEFAULT_SYSTEM_MSG];
-            cache.chatHistory = chatLines;
-            return cache.chatHistory;
-        }
-
-        async function saveChatMessage(newMsg) {
-            // 先读取当前内容（用API保证写入准确）
-            const gistData = await readGist(GIST_ID, 'chat_content.md');
-            const existingContent = gistData.content;
-            const newContent = `${existingContent}\n${newMsg}`;
-            const result = await writeGist(
-                GIST_ID,
-                newContent,
-                'chat_content.md',
-                gistData.gistSha
-            );
-            if (result.success) {
-                cache.chatHistory = newContent.split('\n').filter(line => line.trim());
-            }
-            return result;
-        }
-
-        async function clearChatHistory() {
-            const gistData = await readGist(GIST_ID, 'chat_content.md');
-            const result = await writeGist(
-                GIST_ID,
-                DEFAULT_SYSTEM_MSG,
-                'chat_content.md',
-                gistData.gistSha
-            );
-            if (result.success) {
-                cache.chatHistory = [DEFAULT_SYSTEM_MSG];
-                addSystemMessage('✅ 聊天记录已清空（保留系统消息）');
-                await renderChatHistory(cache.chatHistory);
-            }
-            return result;
-        }
-
-        // ========== 管理员列表处理（修改为读取网页） ==========
-        async function getAdminList() {
-            const content = await readFromGistWeb('admin_list.md');
-            let adminList = content.split('\n').map(a => a.trim()).filter(a => a);
-            if (!adminList.includes(SUPER_ADMIN_USERNAME)) {
-                adminList.push(SUPER_ADMIN_USERNAME);
-                await saveAdminList(adminList);
-            }
-            cache.adminList = adminList;
-            return adminList;
-        }
-
-        async function saveAdminList(adminList) {
-            const content = adminList.join('\n');
-            const gistData = await readGist(GIST_ID, 'admin_list.md');
-            return await writeGist(GIST_ID, content, 'admin_list.md', gistData.gistSha);
-        }
-
-        async function checkIsAdmin(username) {
-            const list = await getAdminList();
-            return list.includes(username);
-        }
-
-        async function addAdmin(target) {
-            if (!isValidUsername(target)) return { success: false, msg: `❌ 用户名不合法（不能为${SYSTEM_USERNAME}/空）` };
-            const list = await getAdminList();
-            if (list.includes(target)) return { success: false, msg: '❌ 该用户已是管理员' };
-            list.push(target);
-            const ok = await saveAdminList(list);
-            return ok ? { success: true, msg: `✅ 已将 ${target} 设置为管理员` } : { success: false, msg: '❌ 保存失败' };
-        }
-
-        async function removeAdmin(target) {
-            if (target === SUPER_ADMIN_USERNAME) return { success: false, msg: '❌ 不能解除超级管理员' };
-            const list = await getAdminList();
-            if (!list.includes(target)) return { success: false, msg: '❌ 该用户不是管理员' };
-            const newList = list.filter(u => u !== target);
-            const ok = await saveAdminList(newList);
-            return ok ? { success: true, msg: `✅ 已解除 ${target} 的管理员权限` } : { success: false, msg: '❌ 保存失败' };
-        }
-
-        // ========== 禁言列表处理（修改为读取网页） ==========
-        async function getMutedUsers() {
-            const content = await readFromGistWeb('muted_users.md');
-            const mutedUsers = content.split('\n')
-                .map(u => u.trim())
-                .filter(u => u && u !== SYSTEM_USERNAME);
-            cache.mutedUsers = mutedUsers;
-            return mutedUsers;
-        }
-
-        async function saveMutedUsers(mutedUsers) {
-            const content = mutedUsers.length > 0 ? mutedUsers.join('\n') : SYSTEM_USERNAME;
-            const gistData = await readGist(GIST_ID, 'muted_users.md');
-            return await writeGist(GIST_ID, content, 'muted_users.md', gistData.gistSha);
-        }
-
-        async function checkIsMuted(username) {
-            const list = await getMutedUsers();
-            return list.includes(username);
-        }
-
-        async function addMuted(target) {
-            if (!isValidUsername(target)) return { success: false, msg: `❌ 用户名不合法（不能为${SYSTEM_USERNAME}/空）` };
-            if (target === SUPER_ADMIN_USERNAME) return { success: false, msg: '❌ 不能禁言超级管理员' };
-            if (await checkIsAdmin(target)) return { success: false, msg: '❌ 不能禁言管理员' };
-            const list = await getMutedUsers();
-            if (list.includes(target)) return { success: false, msg: '❌ 该用户已被禁言' };
-            list.push(target);
-            const ok = await saveMutedUsers(list);
-            return ok ? { success: true, msg: `✅ 已禁言 ${target}` } : { success: false, msg: '❌ 保存失败' };
-        }
-
-        async function removeMuted(target) {
-            const list = await getMutedUsers();
-            if (!list.includes(target)) return { success: false, msg: '❌ 该用户未被禁言' };
-            const newList = list.filter(u => u !== target);
-            const ok = await saveMutedUsers(newList);
-            return ok ? { success: true, msg: `✅ 已解除 ${target} 的禁言` } : { success: false, msg: '❌ 保存失败' };
-        }
-
-        // ========== 消息渲染 ==========
-        function addSystemMessage(content) {
-            const el = document.createElement('div');
-            el.className = 'system-message';
-            el.innerHTML = content;
-            chatMessagesEl.appendChild(el);
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-        }
-
-        async function renderChatHistory(messages) {
-            chatMessagesEl.innerHTML = '';
-            for (const msgLine of messages) {
-                const firstSplit = msgLine.indexOf('|');
-                const secondSplit = msgLine.indexOf(':', firstSplit + 1);
-                if (firstSplit === -1 || secondSplit === -1) continue;
-
-                const senderUsername = msgLine.substring(0, firstSplit).trim();
-                const timestamp = msgLine.substring(firstSplit + 1, secondSplit).trim();
-                const msgContent = msgLine.substring(secondSplit + 1).trim();
-                if (!senderUsername || !timestamp || !msgContent) continue;
-
-                const isSelf = senderUsername === currentUser.username;
-                const isSystem = senderUsername === SYSTEM_USERNAME;
-                const messageItem = document.createElement('div');
-                
-                if (isSystem) {
-                    messageItem.className = 'system-message';
-                    messageItem.innerHTML = msgContent;
-                } else {
-                    messageItem.className = `message-item ${isSelf ? 'self' : 'other'}`;
-                    
-                    const isSuperAdmin = senderUsername === SUPER_ADMIN_USERNAME;
-                    const isAdmin = await checkIsAdmin(senderUsername) && !isSuperAdmin;
-                    const isMuted = await checkIsMuted(senderUsername);
-
-                    const adminBadge = isSuperAdmin 
-                        ? '<span class="super-admin-badge">超级管理员</span>' 
-                        : (isAdmin ? '<span class="admin-badge">管理员</span>' : '');
-                    const mutedBadge = isMuted ? '<span class="muted-badge">已禁言</span>' : '';
-
-                    messageItem.innerHTML = `
-                        <div class="sender">
-                            ${senderUsername}
-                            <span class="level-badge">Lv.${senderUsername === SUPER_ADMIN_USERNAME ? '999+' : '1'}</span>
-                            ${adminBadge}
-                            ${mutedBadge}
-                        </div>
-                        <div class="content">${msgContent.replace(/\n/g, '<br>')}</div>
-                        <div class="time">${formatTime(timestamp)}</div>
-                    `;
-                }
-                chatMessagesEl.appendChild(messageItem);
-            }
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-        }
-
-        // ========== 指令解析 ==========
-        const commandList = [
-            { full: '/Help', short: '/H', desc: '查看指令列表' },
-            { full: '/Refresh', short: '/Rfr', desc: '刷新聊天记录（直接读取Gist网页）' },
-            { full: '/clean', short: '/cls', desc: '清空聊天记录（管理员）' },
-            { full: '/new_Admin <name>', short: '/new_A <name>', desc: '添加管理员（仅超级管理员）' },
-            { full: '/RM_Admin <name>', short: '/RM_A <name>', desc: '移除管理员（仅超级管理员）' },
-            { full: '/M_usr <name>', short: '/M_u <name>', desc: '禁言用户（管理员）' },
-            { full: '/UM_usr <name>', short: '/UM_u <name>', desc: '解除禁言（管理员）' }
-        ];
-
-        async function parseCommand(cmd) {
-            cmd = cmd.trim().toLowerCase();
-            const cmdParts = cmd.split(' ');
-            const mainCmd = cmdParts[0];
-            const target = cmdParts[1] || '';
-
-            switch (mainCmd) {
-                case '/help':
-                case '/h':
-                    const cmdHtml = commandList.map(i => `<div>• ${i.full} (${i.short})：${i.desc}</div>`).join('');
-                    addSystemMessage(`📋 指令列表：<div class="command-list">${cmdHtml}</div>`);
-                    break;
-                case '/refresh':
-                case '/rfr':
-                    await loadChatHistory(true);
-                    addSystemMessage('✅ 已从Gist网页刷新最新聊天记录！');
-                    break;
-                case '/clean':
-                case '/cls':
-                    if (!currentUser.isAdmin) {
-                        addSystemMessage('❌ 仅管理员可清空聊天记录');
-                        return;
-                    }
-                    await clearChatHistory();
-                    break;
-                case '/new_admin':
-                case '/new_a':
-                    if (currentUser.username !== SUPER_ADMIN_USERNAME) {
-                        addSystemMessage('❌ 仅超级管理员可添加管理员');
-                        return;
-                    }
-                    if (!target) {
-                        addSystemMessage('❌ 格式错误：/new_Admin <用户名>');
-                        return;
-                    }
-                    const addAdminRes = await addAdmin(target);
-                    addSystemMessage(addAdminRes.msg);
-                    break;
-                case '/rm_admin':
-                case '/rm_a':
-                    if (currentUser.username !== SUPER_ADMIN_USERNAME) {
-                        addSystemMessage('❌ 仅超级管理员可移除管理员');
-                        return;
-                    }
-                    if (!target) {
-                        addSystemMessage('❌ 格式错误：/RM_Admin <用户名>');
-                        return;
-                    }
-                    const rmAdminRes = await removeAdmin(target);
-                    addSystemMessage(rmAdminRes.msg);
-                    break;
-                case '/m_usr':
-                case '/m_u':
-                    if (!currentUser.isAdmin) {
-                        addSystemMessage('❌ 仅管理员可禁言用户');
-                        return;
-                    }
-                    if (!target) {
-                        addSystemMessage('❌ 格式错误：/M_usr <用户名>');
-                        return;
-                    }
-                    const addMutedRes = await addMuted(target);
-                    addSystemMessage(addMutedRes.msg);
-                    break;
-                case '/um_usr':
-                case '/um_u':
-                    if (!currentUser.isAdmin) {
-                        addSystemMessage('❌ 仅管理员可解除禁言');
-                        return;
-                    }
-                    if (!target) {
-                        addSystemMessage('❌ 格式错误：/UM_usr <用户名>');
-                        return;
-                    }
-                    const rmMutedRes = await removeMuted(target);
-                    addSystemMessage(rmMutedRes.msg);
-                    break;
-                default:
-                    addSystemMessage(`❌ 未知指令：${cmd}（输入/Help查看指令）`);
-            }
-        }
-
-        // ========== 发送消息 ==========
-        async function sendMessage() {
-            if (isCurrentUserMuted) {
-                addSystemMessage('⚠️ 你已被禁言，无法发送消息');
-                return;
-            }
-
-            const content = messageInputEl.value.trim();
-            if (!content) {
-                alert('请输入聊天内容');
-                return;
-            }
-            sendMsgBtnEl.disabled = true;
-
-            try {
-                if (content.startsWith('/')) {
-                    await parseCommand(content);
-                    messageInputEl.value = '';
-                    sendMsgBtnEl.disabled = false;
-                    return;
-                }
-
-                const timestamp = Date.now().toString();
-                const newMsgLine = `${currentUser.username}|${timestamp}:${content}`;
-                const result = await saveChatMessage(newMsgLine);
-                
-                if (result.success) {
-                    messageInputEl.value = '';
-                    await loadChatHistory(true); // 发送后立即刷新
-                } else {
-                    throw new Error(result.message || '发送失败');
-                }
-            } catch (error) {
-                logDebug(`发送消息错误: ${error.message}`);
-                addSystemMessage(`❌ 发送失败：${error.message}`);
-            } finally {
-                sendMsgBtnEl.disabled = false;
-            }
-        }
-
-        // ========== 初始化 ==========
-        async function loadChatHistory(isForce = false) {
-            try {
-                chatMessagesEl.innerHTML = '<div class="loading">正在从Gist网页加载最新聊天记录...</div>';
-                await getChatHistory(); // 强制读取网页
-                await renderChatHistory(cache.chatHistory);
-            } catch (error) {
-                logDebug(`加载聊天记录错误: ${error.message}`);
-                chatMessagesEl.innerHTML = `<div class="loading" style="color: #dc3545;">加载失败：${error.message}</div>`;
-            }
-        }
-
-        async function init() {
-            // 读取本地登录用户
-            const isLogin = loadCurrentUser();
-            if (!isLogin) return;
-
-            // 校验当前用户是否为管理员
-            currentUser.isAdmin = await checkIsAdmin(currentUser.username);
-            
-            // 填充页面用户信息
-            loginNicknameEl.textContent = currentUser.nickname;
-            loginLevelEl.textContent = `Lv.${currentUser.level}`;
-            
-            // 渲染管理员徽章
-            if (currentUser.username === SUPER_ADMIN_USERNAME) {
-                loginAdminBadgeEl.className = 'super-admin-badge';
-                loginAdminBadgeEl.textContent = '超级管理员';
-            } else if (currentUser.isAdmin) {
-                loginAdminBadgeEl.className = 'admin-badge';
-                loginAdminBadgeEl.textContent = '管理员';
-            } else {
-                loginAdminBadgeEl.style.display = 'none';
-            }
-
-            // 检查是否被禁言
-            isCurrentUserMuted = await checkIsMuted(currentUser.username);
-            if (isCurrentUserMuted) {
-                sendMsgBtnEl.disabled = true;
-                messageInputEl.disabled = true;
-                messageInputEl.placeholder = '你已被禁言，无法发送消息';
-                addSystemMessage('⚠️ 你已被禁言，无法发送消息');
-            }
-
-            // 加载聊天记录（直接从Gist网页）
-            await loadChatHistory();
-
-            // 绑定事件
-            sendMsgBtnEl.addEventListener('click', sendMessage);
-            messageInputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-        }
-
-        window.onload = init;
-    </script>
+window.onload = init;
+</script>
 </body>
 </html>
