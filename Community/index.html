@@ -803,7 +803,18 @@
         }
 
         // 页面加载完成后初始化
-        window.onload = init;
+        // 自动刷新聊天（每 2 秒同步一次）
+	function autoRefreshChat() {
+ 	 setInterval(async () => {
+  	  await loadChatHistory(true);
+	  }, 2000);
+	}
+	
+	// 页面加载完成后初始化 + 自动刷新
+	window.onload = () => {
+	  init();
+	  autoRefreshChat();
+	};
     </script>
 </body>
 </html>
